@@ -1,3 +1,4 @@
+// Created by Sunny Chase (https://github.com/sunnychase) in collaboration with Claude (Anthropic).
 // Lion Satellite Studio — imagery: NASA GIBS (WMTS/WMS, EPSG:4326 "best"), EOX Sentinel-2 cloudless
 // high-resolution backdrop, AWS Terrain Tiles (Terrarium) terrain, Natural Earth borders.
 import { App, $, el, getJSON, chip, tick, ymd, fmtAgo, store, toast, requestRender, FAMILY } from './util.js';

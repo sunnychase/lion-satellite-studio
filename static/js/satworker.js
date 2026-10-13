@@ -1,3 +1,4 @@
+// Created by Sunny Chase (https://github.com/sunnychase) in collaboration with Claude (Anthropic).
 // Lion Satellite Studio — SGP4 propagation worker. Propagates every satellite in a batch and
 // returns Earth-fixed positions (metres) in a transferable Float64Array.
 import { json2satrec } from '../vendor/satellite/io.js';

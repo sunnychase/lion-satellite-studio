@@ -1,3 +1,4 @@
+// Created by Sunny Chase (https://github.com/sunnychase) in collaboration with Claude (Anthropic).
 // Lion Satellite Studio — shared helpers and app state.
 export const App = {
   viewer: null,

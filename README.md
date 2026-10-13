@@ -5,6 +5,8 @@
 Where every Earth-observation satellite is right now, what it sees, and what its data says: GOES weather from minutes ago,
 night lights, NISAR radar footprints, SWOT river heights, and your own Sentinel-1 radar analyses. One small Python server, any browser.</p>
 
+<p align="center"><em>Created by <a href="https://github.com/sunnychase">Sunny Chase</a> in collaboration with Claude (Anthropic).</em></p>
+
 <p align="center">
   <a href="https://github.com/sunnychase/lion-satellite-studio/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/sunnychase/lion-satellite-studio/ci.yml?branch=main&style=flat-square&label=CI" alt="CI"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" alt="License: MIT"></a>
@@ -324,6 +326,11 @@ If the project is useful to you, you can support it with a [donation](https://do
     <img alt="Lion Satellite Studio star history" src="https://api.star-history.com/svg?repos=sunnychase/lion-satellite-studio&type=Date" width="600">
   </picture>
 </a>
+
+## Credits
+
+Created by **[Sunny Chase](https://github.com/sunnychase)** in collaboration with **Claude** (Anthropic). Data from NASA, NOAA,
+USGS, ESA/Copernicus, CNES, ISRO and the other providers listed above; software and models as listed in [NOTICE.md](NOTICE.md).
 
 ## License
 

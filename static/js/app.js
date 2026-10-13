@@ -1,3 +1,4 @@
+// Created by Sunny Chase (https://github.com/sunnychase) in collaboration with Claude (Anthropic).
 // Lion Satellite Studio — main: viewer, camera manager, HUD, panel, search, tours, share, capture.
 import { App, $, $$, el, getJSON, store, toast, fmtAgo, fmtUTC, fmtNum, requestRender, FAMILY, debounce, tick, chip, ymd } from './util.js';
 import * as IM from './imagery.js';
@@ -739,6 +740,7 @@ function buildAbout(status) {
   const b = $('#about-body');
   b.innerHTML = `
   <p>Lion Satellite Studio is a live 3D globe of open satellite data. Everything shown is keyless and fetched from the providers below; the server caches every upstream (CelesTrak ≥ 2 h, USGS 5 min, GIBS catalogue 6 h, ASF hourly, Hydrocron 12 h) and is not an open proxy.</p>
+  <p class="small">Created by <a href="https://github.com/sunnychase" target="_blank" rel="noopener">Sunny Chase</a> in collaboration with Claude (Anthropic). Open source under the MIT licence: <a href="https://github.com/sunnychase/lion-satellite-studio" target="_blank" rel="noopener">github.com/sunnychase/lion-satellite-studio</a>.</p>
   <h3>Data rules</h3>
   <ul><li>Satellite positions are propagated in your browser with SGP4 (satellite.js) from CelesTrak general-perturbation elements.</li>
   <li>Imagery tiles load directly from NASA GIBS and EOX; terrain from the AWS Open Data terrain tiles.</li>

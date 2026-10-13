@@ -1,3 +1,4 @@
+// Created by Sunny Chase (https://github.com/sunnychase) in collaboration with Claude (Anthropic).
 // Lion Satellite Studio — event and product layers: USGS earthquakes, NISAR footprints (ASF),
 // SWOT water heights (PO.DAAC Hydrocron), ships (aisstream.io) and GFW SAR dark vessels.
 import { App, $, el, getJSON, chip, tick, fmtAgo, fmtUTC, fmtNum, fmtBytes, store, toast, sparkline, drawSeries, requestRender, FAMILY, skeleton, emptyState } from './util.js';

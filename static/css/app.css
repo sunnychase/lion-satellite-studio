@@ -1,3 +1,4 @@
+/* Created by Sunny Chase (https://github.com/sunnychase) in collaboration with Claude (Anthropic). */
 /* Lion Satellite Studio — charcoal & gold, frosted glass */
 @font-face { font-family: Inter; font-weight: 300; font-display: swap; src: url(../fonts/inter-latin-300-normal.woff2) format('woff2'); }
 @font-face { font-family: Inter; font-weight: 400; font-display: swap; src: url(../fonts/inter-latin-400-normal.woff2) format('woff2'); }
@@ -316,4 +317,13 @@ body.drawing #globe { cursor: crosshair; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
   .ticker .track { animation: none; padding-left: 12px; overflow-x: auto; }
+}
+
+/* creator link (bottom right) */
+.maker { position: fixed; right: calc(14px + var(--sa-r)); bottom: calc(var(--ticker-h) + 3px + var(--sa-bot)); z-index: 18; display: inline-flex; align-items: center; gap: 5px; font-size: 10px; letter-spacing: .02em; color: rgba(236, 228, 207, .6); text-decoration: none; text-shadow: 0 1px 2px #000; }
+.maker svg { width: 12px; height: 12px; fill: currentColor; stroke: none; }
+.maker:hover { color: var(--gold2); }
+@media (max-width: 699px) {
+  .maker { right: 8px; bottom: calc(94px + var(--sa-bot)); font-size: 9px; }
+  .credits-line { right: 92px; }
 }

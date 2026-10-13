@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# Created by Sunny Chase (https://github.com/sunnychase) in collaboration with Claude (Anthropic).
 """Lion Satellite Studio - Sentinel-1 RTC analysis worker (CPU only, one job at a time).
 
 Runs in the Python environment named by LSS_VENV_PYTHON, which has the optional radar extras

@@ -1,3 +1,4 @@
+// Created by Sunny Chase (https://github.com/sunnychase) in collaboration with Claude (Anthropic).
 // Lion Satellite Studio — satellites: CelesTrak GP data, SGP4 in a Web Worker, points/labels,
 // selection card, orbit + ground track, swath + sensor cone, 3D models, eclipse, passes.
 import { App, $, el, getJSON, chip, tick, fmtAgo, fmtUTC, fmtNum, store, toast, sparkline, requestRender, FAMILY, esc } from './util.js';

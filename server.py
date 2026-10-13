@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# Created by Sunny Chase (https://github.com/sunnychase) in collaboration with Claude (Anthropic).
 """Lion Satellite Studio - a 3D globe of open satellite data.
 
 One stdlib-only file. Serves static/ and a handful of CACHED, FIXED-URL upstream

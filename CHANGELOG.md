@@ -20,5 +20,7 @@ Updates to Lion Satellite Studio, newest first. The project has no version numbe
 - **Server**: one standard-library Python file with fixed-URL cached proxies; every setting in `satellite.env`
   (`LSS_HOST` default `127.0.0.1`, `LSS_PORT`, `LSS_CACHE_DIR`, `LSS_DATA_DIR`, `LSS_KEYS_FILE`, `LSS_VENV_PYTHON`,
   `LSS_CONTACT`, `LSS_DISABLE_AIS`); a generic User-Agent `LionSatelliteStudio/1.0 (+repository URL)` with an optional contact.
+- Created by Sunny Chase (https://github.com/sunnychase) in collaboration with Claude (Anthropic); credited in LICENSE, the
+  code headers, the README, the page's About box and a small link at the bottom right of the page.
 - Repository: README with the satellites table generated from the app's data (`scripts/gen_satellites_table.py`), screenshots,
   NOTICE, CONTRIBUTING, SECURITY, AGENTS, issue forms, pull-request template, CI running `scripts/check.sh`.

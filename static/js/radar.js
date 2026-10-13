@@ -1,3 +1,4 @@
+// Created by Sunny Chase (https://github.com/sunnychase) in collaboration with Claude (Anthropic).
 // Lion Satellite Studio — Sentinel-1 radar (Planetary Computer sentinel-1-rtc): scenes in view, VV/VH
 // rendering, before/after swipe, draw-a-box analysis (flood, change, ships, time series).
 import { App, $, el, getJSON, chip, tick, fmtAgo, fmtUTC, fmtNum, store, toast, skeleton, emptyState, requestRender, FAMILY } from './util.js';
