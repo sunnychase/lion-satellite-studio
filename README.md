@@ -24,6 +24,7 @@ night lights, NISAR radar footprints, SWOT river heights, and your own Sentinel-
   <a href="#how-it-works">How it works</a> ·
   <a href="#features">Features</a> ·
   <a href="#point-report--what-sees-this-spot">Point report</a> ·
+  <a href="#golden-gate-gallery">Gallery</a> ·
   <a href="#the-satellites--what-each-one-does">The satellites</a> ·
   <a href="#data-sources-and-licences">Data &amp; licences</a> ·
   <a href="#faq">FAQ</a> ·
@@ -106,6 +107,10 @@ Imagery tiles (GIBS, EOX, Planetary Computer's Sentinel-1 tiles through the serv
 | <img src="docs/images/swipe-oroville.webp" width="100%" alt="Before/after swipe of two Sentinel-1 passes"> | **Before / after swipe.** Compare two radar passes of the same orbit, or radar against true colour, with a divider you drag. The *Radar sees through clouds* tour does this for you. |
 | <img src="docs/images/nisar-granule.webp" width="100%" alt="A NISAR granule card with the browse image draped on the globe"> | **Built to explore.** One-tap guided tours (ISS, GOES, fires, SWOT, night, radar, NISAR), search by satellite, NORAD id, place or river, time controls (pause, real time, ×10, ×100), a share link that restores the view, PNG capture with credits burned in, and a status line for every source. |
 
+**On a phone** the panel becomes a bottom sheet and every card fits one hand:
+
+<p><img src="docs/images/phone-home.webp" width="24%" alt="Phone: home"> <img src="docs/images/phone-iss.webp" width="24%" alt="Phone: ISS card"> <img src="docs/images/phone-water.webp" width="24%" alt="Phone: radar analysis"></p>
+
 ## Point report — what sees this spot?
 
 Type coordinates (`37.8199, -122.4783` or `37°49′11.6″N 122°28′41.9″W`) or a city, right-click the globe (long-press on a
@@ -129,9 +134,41 @@ Every row flies to the item and switches its layer on. *Copy report* gives Markd
 *Share link* a URL ending in `#pt=lat,lon`. The server validates the coordinates, rounds them to 4 decimals (about 11 m) for its
 cache keys, caches every search for an hour, and accepts a new point from the same client at most once every 3 seconds.
 
-**On a phone** the panel becomes a bottom sheet and every card fits one hand:
+## Golden Gate gallery
 
-<p><img src="docs/images/phone-home.webp" width="24%" alt="Phone: home"> <img src="docs/images/phone-iss.webp" width="24%" alt="Phone: ISS card"> <img src="docs/images/phone-water.webp" width="24%" alt="Phone: radar analysis"></p>
+Real screenshots of the app looking at the Golden Gate Bridge (37.8199, −122.4783), taken on 2026-10-13 with the app's own data
+(headless Chromium, 1440×900 and 390×844). Every image keeps the provider's credit; the one-line attribution at the bottom of each
+frame is the app's own, and the full credits are under each picture.
+
+<table>
+<tr>
+<td width="50%" valign="top"><img src="docs/images/golden-gate-report.webp" width="100%" alt="Point report on the Golden Gate Bridge"><br>
+<b>Point report.</b> The satellites over the bridge at 19:32 UTC and the next passes; 19 of the 94 fleet passes in the next 24 h put the bridge inside an instrument swath.<br>
+<sub>Orbits: CelesTrak. Background: EOxCloudless 2025 by EOX IT Services (contains modified Copernicus Sentinel data 2025), CC BY-NC-SA 4.0.</sub></td>
+<td width="50%" valign="top"><img src="docs/images/golden-gate-sentinel2.webp" width="100%" alt="Sentinel-2 scene of the Golden Gate in 3D"><br>
+<b>Sentinel-2C MSI, Level-2A, 2026-10-10 18:53 UTC</b>, 5 % cloud (the scene's own estimate); 10 m natural colour (B4, B3, B2), Planetary Computer render, draped on 3D terrain (×1.5) with the Marin Headlands to the north.<br>
+<sub>Contains modified Copernicus Sentinel data 2026; via Microsoft Planetary Computer. Terrain: Mapzen / AWS Terrain Tiles.</sub></td>
+</tr>
+<tr>
+<td valign="top"><img src="docs/images/golden-gate-landsat9.webp" width="100%" alt="Landsat 9 scene of the Golden Gate in 3D"><br>
+<b>Landsat 9 OLI-2, Collection 2 Level-2, 2026-10-05 18:46 UTC</b>, 33 % cloud: the same view at 30 m, with low cloud and fog over the strait that day.<br>
+<sub>Landsat 9 courtesy of the U.S. Geological Survey; via Microsoft Planetary Computer.</sub></td>
+<td valign="top"><img src="docs/images/golden-gate-sentinel1-ships.webp" width="100%" alt="Sentinel-1 radar over the Bay with ship detections"><br>
+<b>Sentinel-1D C-band radar, IW GRD → RTC γ⁰, VV in dB, 2026-10-12 14:07 UTC</b>, descending, relative orbit 42, 10 m pixels. The scene's edge crosses the box (71 % covered). Ship analysis on a 313 km² box: 17 bright targets on 91 km² of sea (automatic estimate, not validated; AIS cross-match not possible for a 29 h old scene).<br>
+<sub>Contains modified Copernicus Sentinel data 2026; RTC by Catalyst, via Microsoft Planetary Computer.</sub></td>
+</tr>
+<tr>
+<td valign="top"><img src="docs/images/golden-gate-nisar.webp" width="100%" alt="NISAR GCOV footprint and browse image over the Bay Area"><br>
+<b>NISAR L-band radar, GCOV (provisional), 2026-10-10 03:04 UTC</b>, track 143, frame 69, descending: footprint and ASF browse image (reduced resolution) covering the bridge.<br>
+<sub>NASA/JPL-Caltech, ISRO; ASF DAAC 2026, contains modified NISAR data.</sub></td>
+<td valign="top"><img src="docs/images/golden-gate-golden-hour.webp" width="100%" alt="The Bay Area in 3D at golden hour"><br>
+<b>Golden hour.</b> The app's clock set to 2026-10-14 01:00 UTC, when the sun is about 6° above the horizon at the bridge, with day/night lighting and 3D terrain. Dashed: SMAP's upcoming ground track. No PACE or NOAA-20 pass falls in golden hour that day (they cross around 20:15–22:00 UTC).<br>
+<sub>EOxCloudless 2025 by EOX IT Services (contains modified Copernicus Sentinel data 2025), CC BY-NC-SA 4.0. Terrain: Mapzen / AWS Terrain Tiles. Orbits: CelesTrak.</sub></td>
+</tr>
+</table>
+
+<p><img src="docs/images/golden-gate-phone.webp" width="24%" alt="Phone: Point report on the Golden Gate Bridge"><br>
+<sub>The Point report on a phone (390×844). Background: EOxCloudless 2025, CC BY-NC-SA 4.0.</sub></p>
 
 ## Requirements
 

@@ -107,7 +107,7 @@ function setPin(lat, lon, label) {
 }
 function clearExtra() {
   const v = App.viewer;
-  if (P.extra) { for (const e of P.extra.ents || []) v.entities.remove(e); if (P.extra.layer) v.imageryLayers.remove(P.extra.layer, true); P.extra = null; }
+  if (P.extra) { for (const e of P.extra.ents || []) v.entities.remove(e); if (P.extra.layer) v.imageryLayers.remove(P.extra.layer, true); P.extra = null; App.events.dispatchEvent(new Event('layers')); }
   requestRender();
 }
 function clearOptical() {
@@ -409,7 +409,7 @@ async function showNisar(g) {
     try {
       const prov = await C.SingleTileImageryProvider.fromUrl(g.browse, { rectangle: C.Rectangle.fromDegrees(Math.min(...lons), Math.min(...lats), Math.max(...lons), Math.max(...lats)), credit: 'NISAR browse: NASA/JPL-Caltech, ISRO; ASF DAAC' });
       const layer = new C.ImageryLayer(prov, { alpha: 0.92 }); layer.colorToAlpha = C.Color.BLACK; layer.colorToAlphaThreshold = 0.02;
-      if (P.extra && P.extra.ents === ents) { P.extra.layer = v.imageryLayers.add(layer); }
+      if (P.extra && P.extra.ents === ents) { P.extra.layer = v.imageryLayers.add(layer); P.extra.credit = 'NISAR browse: NASA/JPL-Caltech, ISRO via ASF DAAC'; App.events.dispatchEvent(new Event('layers')); }
     } catch (e) { toast('Browse image could not be loaded'); }
   }
   const pts = g.geom && g.geom[0] ? C.Cartesian3.fromDegreesArray(g.geom[0].flat()) : null;
@@ -567,4 +567,5 @@ export function setupPointPicking() {
   App.tipHandlers = App.tipHandlers || {};
   App.tipHandlers.point = () => P.cur ? `<b>Point report</b> <span class="sub">${fmtLL(P.cur.lat, P.cur.lon)} · tap to reopen</span>` : null;
 }
-export function opticalCredit() { return P.overlayInfo ? P.overlayInfo.credit : null; }
+// credits for what the Point report put on the globe (an optical scene, a NISAR browse image)
+export function opticalCredit() { return [P.overlayInfo && P.overlayInfo.credit, P.extra && P.extra.credit].filter(Boolean).join(' · ') || null; }

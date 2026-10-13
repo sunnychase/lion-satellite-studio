@@ -2,6 +2,14 @@
 
 Updates to Lion Satellite Studio, newest first. The project has no version numbers; each entry is dated.
 
+## 2026-10-13 — Golden Gate gallery
+
+- README: a *Golden Gate gallery* of seven app screenshots of the Golden Gate Bridge (37.8199, −122.4783), with date, sensor,
+  resolution and the provider's credit under each: the Point report, Sentinel-2 L2A (2026-10-10) and Landsat 9 (2026-10-05) scenes in 3D,
+  Sentinel-1 radar with a ships analysis over the strait, a NISAR GCOV footprint with its browse image, the Bay at golden hour, and the
+  Point report on a phone.
+- Fix: a NISAR browse image draped from the Point report is now credited in the attribution line at the bottom of the page (and in PNG captures).
+
 ## 2026-10-13 — Point report: what sees this spot?
 
 - **New: Point report.** Type coordinates (decimal or degrees-minutes-seconds) or a place in the new *What sees this spot?* section or the
