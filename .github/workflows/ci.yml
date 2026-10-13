@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    name: compile, page modules, README table, hygiene (Python ${{ matrix.python }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ["3.10", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: python -m py_compile on every .py
+        run: bash scripts/check.sh py
+      - name: node --check on every module in static/js
+        run: bash scripts/check.sh js
+      - name: README satellites table matches static/data/missions.json
+        run: bash scripts/check.sh table
+      - name: no home paths, private addresses, token-shaped strings or keys files
+        run: bash scripts/check.sh hygiene

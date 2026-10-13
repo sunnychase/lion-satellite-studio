@@ -1,0 +1,96 @@
+name: Bug report
+description: Something in the globe or the server does not work as described
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        One problem per report, please. Remove personal paths, addresses, keys and your location from anything you paste.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before you file
+      options:
+        - label: I searched the open and closed issues for the same problem.
+          required: true
+        - label: I removed personal paths, addresses, keys and my location from this report.
+          required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Globe, camera or performance
+        - Satellites (positions, cards, models, passes)
+        - Imagery (GIBS, EOX, terrain, near real time)
+        - Earthquakes
+        - NISAR footprints
+        - SWOT rivers and lakes
+        - Sentinel-1 radar (tiles, swipe)
+        - Radar analysis (water, change, ships, time series)
+        - Ships / Global Fishing Watch (keys)
+        - Server, cache or configuration
+        - Phone layout
+        - Documentation
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you did, what you saw, and any message in the page, the status chips or the browser console.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: A share link (the 🔗 button) helps if it contains nothing private.
+      placeholder: |
+        1. Open the Radar section
+        2. Draw a box over ...
+        3. Press Water / flood and ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+
+  - type: input
+    id: commit
+    attributes:
+      label: Commit
+      description: "`git -C lion-satellite-studio rev-parse --short HEAD`"
+    validations:
+      required: true
+
+  - type: textarea
+    id: setup
+    attributes:
+      label: Machine and software
+      description: Server OS and Python version; browser, version and device; whether the radar extras are installed; which LSS_* settings you changed (not their private values).
+      placeholder: Ubuntu 24.04, Python 3.12; Firefox 140 on a laptop; radar extras installed
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Server log or /api/status
+      description: "The smallest useful part of the server's output (or `journalctl --user -u lion-satellite-studio`), or of `/api/status`."
+      render: text
+
+  - type: textarea
+    id: more
+    attributes:
+      label: Anything else
+      description: Screenshots, or what you already tried.

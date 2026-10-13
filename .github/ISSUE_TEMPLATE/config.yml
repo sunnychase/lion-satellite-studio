@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation
+    url: https://github.com/sunnychase/lion-satellite-studio#readme
+    about: Quick start, configuration, data sources and licences, limits and the FAQ.
+  - name: Report a security problem privately
+    url: https://github.com/sunnychase/lion-satellite-studio/security/policy
+    about: Please do not open a public issue for security problems.

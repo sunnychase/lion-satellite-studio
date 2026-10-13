@@ -1,0 +1,60 @@
+name: Feature request
+description: Suggest one focused improvement or a new open data source
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        One idea per request, please. For a new data source, say who publishes it, its licence and its rate rules.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before you file
+      options:
+        - label: I searched the open and closed issues and pull requests for the same idea.
+          required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - A new satellite or mission
+        - A new imagery or science layer
+        - A new data source
+        - Radar analysis
+        - Globe, camera, tours or search
+        - Phone layout
+        - Server, cache or configuration
+        - Documentation
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What is hard or impossible today, and when do you run into it?
+    validations:
+      required: true
+
+  - type: textarea
+    id: idea
+    attributes:
+      label: What you would like
+      description: What the app should do, and how you would know it works.
+    validations:
+      required: true
+
+  - type: textarea
+    id: source
+    attributes:
+      label: Data source, licence and limits
+      description: For new data, the provider, the URL of its API or catalogue, its licence (commercial use allowed?), whether it needs an account or key, and how often it may be polled.
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you considered
