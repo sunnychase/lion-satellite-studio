@@ -20,6 +20,7 @@ fetches, caches and validates every upstream source. An optional worker analyses
 | `static/js/imagery.js` | GIBS / EOX / terrain layers, near-real-time frames, legends |
 | `static/js/data.js` | earthquakes, NISAR, SWOT, ships, Global Fishing Watch |
 | `static/js/radar.js` | Sentinel-1: search, tiles, swipe, analysis UI |
+| `static/js/point.js` | Point report: coordinate parsing, right-click / long-press, passes and swath test, data lookups, export |
 | `static/js/util.js` | shared helpers and app state (`App`, exposed as `window.LE`) |
 | `static/data/` | `missions.json` (sourced facts per satellite), `swot_features.json` (whitelist), gazetteer, borders |
 | `static/models/` | NASA 3D models and `manifest.json` (credits, scale) |

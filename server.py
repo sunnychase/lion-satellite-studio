@@ -16,6 +16,8 @@ Upstreams (all keyless unless noted):
   PO.DAAC Hydrocron      cache 12 h per whitelisted feature, one request at a time
   aisstream.io (KEY)     one websocket, only if AISSTREAM_API_KEY is present in keys.env
   Global Fishing Watch (TOKEN) SAR detections, cache 6 h, only if GFW_API_TOKEN is present
+  Point lookup (/api/point/*): PC STAC point search (S1/S2/Landsat/HLS), ASF NISAR intersectsWith,
+                         NASA Earthdata GIS SWOT reaches; cache 1 h; one new point per client every 3 s
 
 Keys are read once at start from the keys file (LSS_KEYS_FILE, default ./keys.env, written by
 you, mode 600). They are never logged, never returned by any endpoint, never written anywhere else.
@@ -421,6 +423,7 @@ GIBS_LAYERS = [
     dict(id="BlueMarble_ShadedRelief_Bathymetry", group="base", title="Blue Marble · relief & bathymetry", time="none"),
     dict(id="BlueMarble_NextGeneration", group="base", title="Blue Marble · Next Generation", time="none"),
     dict(id="MODIS_Terra_CorrectedReflectance_TrueColor", group="base", title="MODIS Terra · true colour (daily)", time="daily", truecolor=True, sat=25994),
+    dict(id="MODIS_Aqua_CorrectedReflectance_TrueColor", group="base", title="MODIS Aqua · true colour (daily)", time="daily", truecolor=True, sat=27424),
     dict(id="VIIRS_SNPP_CorrectedReflectance_TrueColor", group="base", title="VIIRS Suomi NPP · true colour (daily)", time="daily", truecolor=True, sat=37849),
     dict(id="VIIRS_NOAA20_CorrectedReflectance_TrueColor", group="base", title="VIIRS NOAA-20 · true colour (daily)", time="daily", truecolor=True, sat=43013),
     dict(id="VIIRS_NOAA21_CorrectedReflectance_TrueColor", group="base", title="VIIRS NOAA-21 · true colour (daily)", time="daily", truecolor=True, sat=54234),
@@ -517,7 +520,7 @@ def fetch_gibs_catalog():
         el.clear()
     if len(found) < 5:
         raise Upstream("GIBS capabilities parse found too few layers")
-    out = {"fetched": iso(time.time()), "layers": found}
+    out = {"fetched": iso(time.time()), "layers": found, "want": sorted(want)}
     return json.dumps(out, separators=(",", ":")).encode()
 
 
@@ -528,6 +531,11 @@ LAYERS_OUT = {"src": None, "gz": None}
 
 def gibs_layers_json():
     cat, meta = GIBS_CATALOG.raw_json()
+    if sorted(cat.get("want") or []) != sorted(GIBS_BY_ID) and not GIBS_CATALOG.refreshing:
+        try:  # the layer whitelist changed since this catalogue was built: mark it stale so it is fetched again
+            os.utime(GIBS_CATALOG.path, (0, 0))
+        except OSError:
+            pass
     if LAYERS_OUT["src"] != meta["fetched"]:
         out = []
         for l in GIBS_LAYERS:
@@ -1481,7 +1489,7 @@ def s1_cleanup():
     """Results are kept 7 days; search caches 1 day (this app's own cache files only)."""
     import shutil
     now = time.time()
-    for base, age in ((S1_JOBS, 7 * 86400), (S1_SEARCH_DIR, 86400)):
+    for base, age in ((S1_JOBS, 7 * 86400), (S1_SEARCH_DIR, 86400), (POINT_DIR, 86400)):
         if not os.path.isdir(base):
             continue
         for name in os.listdir(base):
@@ -1569,6 +1577,179 @@ def ais_crossmatch(res_path):
         json.dump(r, f, separators=(",", ":"))
     os.replace(res_path + ".tmp", res_path)
     return r
+
+
+# --------------------------------------------------------------------------- point lookup ("what sees this spot?")
+# Fixed upstream URLs only. lat/lon are validated and rounded to 4 dp (about 11 m) before they reach a cache key or a
+# request; every search is cached on disk for 1 h; a client may ask about a NEW point at most once every 3 s.
+POINT_DIR = os.path.join(CACHE, "point")
+POINT_TTL = 3600
+POINT_COLLECTIONS = {   # collection -> (look-back days, newest N, item-id pattern)
+    "sentinel-1-rtc": (120, 15, S1_ID_RE),
+    "sentinel-2-l2a": (120, 12, re.compile(r"^S2[A-D]_MSIL2A_\d{8}T\d{6}_R\d{3}_T\d{2}[A-Z]{3}_\d{8}T\d{6}$")),
+    "landsat-c2-l2": (180, 12, re.compile(r"^L[COTE]0[4-9]_L2S[PR]_\d{6}_\d{8}(?:_\d{8})?_02_(T1|T2|RT)$")),
+    "hls2-l30": (120, 12, re.compile(r"^HLS\.L30\.T\d{2}[A-Z]{3}\.\d{7}T\d{6}\.v2\.0$")),
+    "hls2-s30": (120, 12, re.compile(r"^HLS\.S30\.T\d{2}[A-Z]{3}\.\d{7}T\d{6}\.v2\.0$")),
+}
+# Planetary Computer's own "Natural color" render options (api/data/v1/mosaic/info renderOptions), per collection
+OPT_RENDER = {
+    "sentinel-2-l2a": "assets=B04&assets=B03&assets=B02&nodata=0&color_formula=" + urllib.parse.quote("Gamma RGB 3.2 Saturation 0.8 Sigmoidal RGB 25 0.35"),
+    "landsat-c2-l2": "assets=red&assets=green&assets=blue&nodata=0&color_formula=" + urllib.parse.quote("gamma RGB 2.7, saturation 1.5, sigmoidal RGB 15 0.55"),
+    "hls2-l30": "assets=B04&assets=B03&assets=B02&nodata=0&color_formula=" + urllib.parse.quote("Gamma RGB 3.7 Saturation 1.5 Sigmoidal RGB 15 0.35"),
+    "hls2-s30": "assets=B04&assets=B03&assets=B02&color_formula=" + urllib.parse.quote("Gamma RGB 3.7 Saturation 1.5 Sigmoidal RGB 15 0.35"),
+}
+OPT_TILE = ("https://planetarycomputer.microsoft.com/api/data/v1/item/tiles/WebMercatorQuad/{z}/{x}/{y}@1x.png"
+            "?collection={coll}&item={item}&{q}")
+SWOT_GIS = ("https://gis.earthdata.nasa.gov/portal/rest/services/C3233944997_POCLOUD/SWOT_L2_HR_RiverSP_reach_vD_BASIC/"
+            "FeatureServer/1/query")
+POINT_GATE = {}
+POINT_GATE_LOCK = threading.Lock()
+POINT_SEM = threading.BoundedSemaphore(3)
+
+
+def latlon_param(lat, lon):
+    la, lo = float(lat), float(lon)
+    if not (math.isfinite(la) and math.isfinite(lo) and -90 <= la <= 90 and -180 <= lo <= 180):
+        raise ValueError("lat must be -90..90 and lon -180..180")
+    return round(la, 4), round(lo, 4)
+
+
+def point_gate(client, pt):
+    """A client may start a lookup for a NEW point at most once every 3 s (other datasets for the same point are free)."""
+    now = time.time()
+    with POINT_GATE_LOCK:
+        if len(POINT_GATE) > 5000:
+            for k in [k for k, v in POINT_GATE.items() if now - v[1] > 60]:
+                POINT_GATE.pop(k, None)
+        last = POINT_GATE.get(client)
+        if last and last[0] != pt and now - last[1] < 3.0:
+            return max(1, math.ceil(3.0 - (now - last[1])))
+        if not last or last[0] != pt:
+            POINT_GATE[client] = (pt, now)
+    return 0
+
+
+def point_cached(kind, key, fetch):
+    path = os.path.join(POINT_DIR, kind, hashlib.sha1(key.encode()).hexdigest()[:20] + ".json.gz")
+    src = {"stac": "planetary-computer", "nisar": "asf", "swot": "nasa-gis"}[kind]
+
+    def guarded():
+        with POINT_SEM:
+            return fetch()
+    return Cached("point:%s:%s" % (kind, key), path, POINT_TTL, guarded, err_backoff=120, source=src).get()
+
+
+def point_stac(coll, la, lo):
+    days, limit, _ = POINT_COLLECTIONS[coll]
+    end = utcnow()
+    start = end - dt.timedelta(days=days)
+    key = "%s_%.4f_%.4f_%s" % (coll, la, lo, end.strftime("%Y-%m-%dT%H"))
+
+    def fetch():
+        body = {"collections": [coll], "intersects": {"type": "Point", "coordinates": [lo, la]},
+                "datetime": "%s/%s" % (iso(start), iso(end)), "limit": limit,
+                "sortby": [{"field": "datetime", "direction": "desc"}]}
+        _, raw, _ = http_get(PC_SEARCH, data=json.dumps(body).encode(), method="POST",
+                             headers={"Content-Type": "application/json"}, timeout=60, source="planetary-computer")
+        d = json.loads(raw)
+        out = []
+        for f in d.get("features", [])[:limit]:
+            p = f.get("properties", {})
+            out.append({"id": f.get("id"), "dt": p.get("datetime"), "platform": p.get("platform"),
+                        "cloud": p.get("eo:cloud_cover"), "dir": p.get("sat:orbit_state"), "rel": p.get("sat:relative_orbit"),
+                        "abs": p.get("sat:absolute_orbit"), "bbox": [round(x, 4) for x in f.get("bbox", [])]})
+        return json.dumps({"collection": coll, "lat": la, "lon": lo, "from": iso(start), "to": iso(end),
+                           "fetched": iso(time.time()), "scenes": out}, separators=(",", ":")).encode()
+    return point_cached("stac", key, fetch)
+
+
+def point_nisar(la, lo):
+    end = utcnow()
+    start = max(NISAR_START, end - dt.timedelta(days=180))
+    key = "%.4f_%.4f_%s" % (la, lo, end.strftime("%Y-%m-%dT%H"))
+
+    def fetch():
+        q = {"platform": "NISAR", "intersectsWith": "POINT(%.4f %.4f)" % (lo, la), "start": iso(start), "end": iso(end),
+             "output": "jsonlite2", "maxResults": "250"}
+        _, raw, _ = http_get(ASF_URL + "?" + urllib.parse.urlencode(q), timeout=120, source="asf")
+        rows = []
+        for r in json.loads(raw).get("results") or []:
+            gn = r.get("gn")
+            if not gn or not GN_RE.match(gn):
+                continue
+            browse = next((b for b in (r.get("b") or []) if b.endswith("_LATLON.png")), None)
+            rows.append({"gn": gn, "pt": r.get("pt"), "st": r.get("st"), "path": r.get("p"), "frame": r.get("f"),
+                         "dir": (r.get("fd") or "?")[:1], "browse": browse.replace("{gn}", gn) if browse else None,
+                         "geom": Nisar.parse_wkt(r.get("w"))})
+        rows.sort(key=lambda x: x["st"] or "", reverse=True)
+        counts = {}
+        for x in rows:
+            counts[x["pt"]] = counts.get(x["pt"], 0) + 1
+        return json.dumps({"lat": la, "lon": lo, "from": iso(start), "to": iso(end), "fetched": iso(time.time()),
+                           "total": len(rows), "by_type": counts, "granules": rows[:40]}, separators=(",", ":")).encode()
+    return point_cached("nisar", key, fetch)
+
+
+def point_swot(la, lo, km):
+    key = "%.4f_%.4f_%d" % (la, lo, km)
+
+    def fetch():
+        q = {"geometry": "%.4f,%.4f" % (lo, la), "geometryType": "esriGeometryPoint", "inSR": "4326",
+             "spatialRel": "esriSpatialRelIntersects", "distance": str(km), "units": "esriSRUnit_Kilometer",
+             "outFields": "reach_id,river_name,time_str,wse", "orderByFields": "time_str DESC", "returnGeometry": "true",
+             "geometryPrecision": "4", "outSR": "4326", "resultRecordCount": "400", "f": "json"}
+        _, raw, _ = http_get(SWOT_GIS + "?" + urllib.parse.urlencode(q), timeout=60, source="nasa-gis")
+        d = json.loads(raw)
+        if "error" in d:
+            raise Upstream("NASA Earthdata GIS: %s" % str(d["error"])[:120])
+        reaches = {}
+        for f in d.get("features") or []:
+            a = f.get("attributes") or {}
+            rid = str(a.get("reach_id") or "")
+            if not re.fullmatch(r"\d{11}", rid):
+                continue
+            t = a.get("time_str") or ""
+            w = a.get("wse")
+            w = w if isinstance(w, (int, float)) and -1000 < w < 10000 else None
+            r = reaches.setdefault(rid, {"id": rid, "name": a.get("river_name") or "", "passes": 0, "latest": None,
+                                         "latest_wse": None, "dist_km": None})
+            if t and not t.startswith("no_data"):
+                r["passes"] += 1
+                if (r["latest"] or "") < t:
+                    r["latest"], r["latest_wse"] = t, w
+            for path in (f.get("geometry") or {}).get("paths") or []:
+                for x, y in path:
+                    dkm = math.hypot((y - la) * 110.57, (x - lo) * 111.32 * math.cos(math.radians(la)))
+                    if r["dist_km"] is None or dkm < r["dist_km"]:
+                        r["dist_km"] = round(dkm, 2)
+        out = sorted(reaches.values(), key=lambda r: (r["dist_km"] if r["dist_km"] is not None else 1e9))[:15]
+        return json.dumps({"lat": la, "lon": lo, "km": km, "fetched": iso(time.time()), "reaches": out,
+                           "source": "SWOT_L2_HR_RiverSP_reach (version D) on NASA Earthdata GIS"}, separators=(",", ":")).encode()
+    return point_cached("swot", key, fetch)
+
+
+OPT_LRU = {}
+
+
+def opt_tile(coll, item, z, x, y):
+    k = (coll, item, z, x, y)
+    hit = OPT_LRU.get(k)
+    if hit:
+        return hit, "hit"
+    url = OPT_TILE.format(z=z, x=x, y=y, coll=coll, item=urllib.parse.quote(item), q=OPT_RENDER[coll])
+    with TILE_SEM:
+        try:
+            _, body, _ = http_get(url, timeout=45, max_bytes=4 * 2**20, source="pc-tiles")
+        except Upstream as e:
+            if "HTTP 404" in str(e) or "HTTP 204" in str(e):
+                body = EMPTY_PNG
+            else:
+                raise
+    if len(OPT_LRU) > 400:
+        for kk in list(OPT_LRU)[:100]:
+            OPT_LRU.pop(kk, None)
+    OPT_LRU[k] = body
+    return body, "miss"
 
 
 # --------------------------------------------------------------------------- HTTP handler
@@ -1844,11 +2025,50 @@ class Handler(BaseHTTPRequestHandler):
                 ct = {"overlay.png": "image/png", "result.geojson": "application/geo+json", "result.json": "application/json"}[name]
                 hdr = {"Content-Disposition": 'attachment; filename="lion-satellite-studio-%s-%s"' % (key[:8], name)} if one("dl") else None
                 return self.send_body(200, body, ct, headers=hdr, cache="private, max-age=600")
+            if p.startswith("/api/point/"):
+                return self.point_api(p, one)
             if p == "/api/status":
                 return self.send_json(self.status())
             return self.send_err(404, "unknown endpoint")
         except Unavailable as e:
             return self.send_err(503, str(e), e.retry)
+
+    def point_api(self, p, one):
+        if p == "/api/point/tile":
+            coll, item = one("collection", ""), one("item", "")
+            if coll not in OPT_RENDER or not POINT_COLLECTIONS[coll][2].match(item):
+                return self.send_err(400, "bad collection or item")
+            try:
+                z, x, y = int(one("z")), int(one("x")), int(one("y"))
+                assert 8 <= z <= 16 and 0 <= x < 2 ** z and 0 <= y < 2 ** z
+            except Exception:
+                return self.send_err(400, "z/x/y out of range")
+            try:
+                body, hit = opt_tile(coll, item, z, x, y)
+            except Upstream as e:
+                return self.send_err(502, "tile unavailable: " + str(e)[:80], 60)
+            return self.send_body(200, body, "image/png", headers={"X-Cache": hit}, cache="public, max-age=86400")
+        try:
+            la, lo = latlon_param(one("lat", ""), one("lon", ""))
+        except Exception:
+            return self.send_err(400, "lat must be -90..90 and lon -180..180 (decimal degrees)")
+        coll, km = one("collection", ""), one("km", "10")
+        if p == "/api/point/stac" and coll not in POINT_COLLECTIONS:
+            return self.send_err(400, "collection must be one of " + ", ".join(POINT_COLLECTIONS))
+        if p == "/api/point/swot" and not (km.isdigit() and 1 <= int(km) <= 25):
+            return self.send_err(400, "km must be 1..25")
+        if p not in ("/api/point/stac", "/api/point/nisar", "/api/point/swot"):
+            return self.send_err(404, "unknown endpoint")
+        wait = point_gate(self.client_address[0], (la, lo))
+        if wait:
+            return self.send_err(429, "one new point every 3 s, please", wait)
+        if p == "/api/point/stac":
+            gz, meta = point_stac(coll, la, lo)
+        elif p == "/api/point/nisar":
+            gz, meta = point_nisar(la, lo)
+        else:
+            gz, meta = point_swot(la, lo, int(km))
+        return self.cached_out(gz, meta)
 
     def s1_analyze(self, one):
         typ = one("type", "")

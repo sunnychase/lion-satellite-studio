@@ -23,6 +23,7 @@ night lights, NISAR radar footprints, SWOT river heights, and your own Sentinel-
   <a href="#quick-start">Quick start</a> ·
   <a href="#how-it-works">How it works</a> ·
   <a href="#features">Features</a> ·
+  <a href="#point-report--what-sees-this-spot">Point report</a> ·
   <a href="#the-satellites--what-each-one-does">The satellites</a> ·
   <a href="#data-sources-and-licences">Data &amp; licences</a> ·
   <a href="#faq">FAQ</a> ·
@@ -77,7 +78,8 @@ folder; see [Configuration](#configuration)). To run it in the background, adapt
         ├── USGS ..................... earthquakes, last day and week       5 min
         ├── ASF (NISAR) .............. granule footprints → local SQLite    hourly poll + slow backfill
         ├── PO.DAAC Hydrocron (SWOT) . river and lake heights, 44 places    12 h, one request at a time
-        ├── Planetary Computer ....... Sentinel-1 RTC search and tiles      1 h search, tiles in memory
+        ├── NASA Earthdata GIS ....... SWOT reaches near a point (keyless)  1 h
+        ├── Planetary Computer ....... Sentinel-1/-2, Landsat, HLS: search + tiles   1 h, tiles in memory
         │       └── analysis.py ...... optional radar worker (numpy/rasterio), one job at a time, niced
         ├── aisstream.io (your key) .. live AIS ships over one WebSocket    in memory, last 30 min
         └── Global Fishing Watch (your token)  SAR vessel detections      6 h
@@ -103,6 +105,29 @@ Imagery tiles (GIBS, EOX, Planetary Computer's Sentinel-1 tiles through the serv
 | <img src="docs/images/radar-ships-rotterdam.webp" width="100%" alt="Ship detections off Rotterdam"> | **Ships at sea from radar.** CFAR detection over sea pixels only (Natural Earth land plus ESA WorldCover 10 m as the land mask), with length and confidence per target. With an aisstream.io key, near-live scenes are cross-checked against AIS. |
 | <img src="docs/images/swipe-oroville.webp" width="100%" alt="Before/after swipe of two Sentinel-1 passes"> | **Before / after swipe.** Compare two radar passes of the same orbit, or radar against true colour, with a divider you drag. The *Radar sees through clouds* tour does this for you. |
 | <img src="docs/images/nisar-granule.webp" width="100%" alt="A NISAR granule card with the browse image draped on the globe"> | **Built to explore.** One-tap guided tours (ISS, GOES, fires, SWOT, night, radar, NISAR), search by satellite, NORAD id, place or river, time controls (pause, real time, ×10, ×100), a share link that restores the view, PNG capture with credits burned in, and a status line for every source. |
+
+## Point report — what sees this spot?
+
+Type coordinates (`37.8199, -122.4783` or `37°49′11.6″N 122°28′41.9″W`) or a city, right-click the globe (long-press on a
+phone), or tap *My location*, and the app answers **which satellites see that exact point and which data already exist for it**:
+
+<p><img src="docs/images/point-report.webp" width="74%" alt="Point report for the Golden Gate Bridge, with a Sentinel-2 scene shown"> <img src="docs/images/phone-point.webp" width="24%" alt="Phone: Point report"></p>
+
+| Section | How it is worked out |
+|---|---|
+| **Satellites over it now** | Every fleet satellite above the point's horizon, with its elevation angle; *imaging now* when the point lies inside the instrument swath (the swath widths in `missions.json`) within ±100 km of the satellite's current position. With the *All active* group loaded, a count of everything above the horizon. |
+| **Next passes (24 h)** | Rise, set and maximum elevation of each low-orbit fleet satellite, and whether the point falls **inside the instrument swath** at closest approach (cross-track distance vs the swath, nadir gaps included), day or night. This is the "which satellite will have data here" answer. |
+| **Daily imagery at this pixel** | One NASA GIBS tile per layer at ~1 km per pixel, read in your browser: MODIS Terra/Aqua and VIIRS (Suomi NPP, NOAA-20, NOAA-21) true colour and the active science layer, for a date you pick. |
+| **Sentinel-1 radar** | The newest 15 Sentinel-1 RTC scenes whose footprint contains the point (Planetary Computer STAC point search); tap one to show it. |
+| **Optical scenes** | The newest Sentinel-2 L2A, Landsat Collection 2 L2 and HLS (L30, S30) scenes over the point with their cloud cover; tap to show the scene with Planetary Computer's own "Natural color" render. |
+| **NISAR** | Every NISAR granule whose footprint contains the point (ASF `intersectsWith=POINT`), by product, with the browse image on tap. |
+| **SWOT** | River reaches within 10 km from NASA's SWOT RiverSP feature service (keyless), with the last valid pass and water-surface elevation, plus the nearest curated river or lake. |
+| **Nearby** | Earthquakes M2.5+ within 300 km in the last 7 days (USGS) and, with an aisstream.io key, AIS ships within 50 km. |
+| **Geostationary views** | Whether GOES-East, GOES-West and Himawari see the point, with the view zenith angle (above 70° is poor). |
+
+Every row flies to the item and switches its layer on. *Copy report* gives Markdown, *Download GeoJSON* the full report, and
+*Share link* a URL ending in `#pt=lat,lon`. The server validates the coordinates, rounds them to 4 decimals (about 11 m) for its
+cache keys, caches every search for an hour, and accepts a new point from the same client at most once every 3 seconds.
 
 **On a phone** the panel becomes a bottom sheet and every card fits one hand:
 
@@ -161,7 +186,7 @@ The globe follows these satellites by default (the "NASA Earth fleet"). Tap any 
 |---|---|---|---|---|---|---|
 | **[International Space Station](https://www.nasa.gov/reference/international-space-station/)**<br><sub>NORAD 25544</sub> | NASA, Roscosmos, ESA, JAXA, CSA (hosts NASA GEDI, OCO-3, ECOSTRESS) | 1998-11-20 | LEO ~370–460 km | **GEDI**: Lidar with 3 lasers making 8 tracks that measure forest canopy height and 3D structure.<br>**OCO-3**: Spectrometer measuring CO2 and plant fluorescence, incl. snapshot maps over cities.<br>**ECOSTRESS**: Thermal radiometer measuring plant temperature to detect water stress (38 m x 69 m pixels). | A crewed orbiting laboratory. Its hosted NASA Earth instruments map forest structure (GEDI), carbon dioxide (OCO-3) and plant water stress (ECOSTRESS) at times of day sun-synchronous satellites miss. | 3D model (NASA 3D Resources) |
 | **[Terra (EOS AM-1)](https://terra.nasa.gov/)**<br><sub>NORAD 25994</sub> | NASA | 1999-12-18 | LEO, sun-synchronous ~705 km nominal; lowered ~5 km and drifting to an earlier morning equator crossing (was 10:30 a.m.) | **MODIS**: 36-band imager viewing the whole Earth every 1–2 days: clouds, aerosols, fires, snow, vegetation.<br>**ASTER**: High-resolution (15–90 m) visible and thermal imager; its shortwave-IR channels are unavailable.<br>**MISR**: Nine cameras at different angles measuring aerosols, cloud heights and surface texture.<br>**CERES**: Radiometers measuring reflected sunlight and emitted heat (Earth's energy budget).<br>**MOPITT**: Measures carbon monoxide pollution in the lower atmosphere. | Terra, the EOS flagship, measures land, atmosphere, oceans and Earth's energy balance together, giving a 25+ year record of how the planet is changing and data on fires, volcanoes and other hazards. | MODIS Terra · true colour (daily)<br>Aerosol optical depth · MODIS Terra 3 km<br>Snow cover · MODIS Terra NDSI<br>Clouds · MODIS Terra cloud fraction<br>3D model (NASA 3D Resources) |
-| **[Aqua (EOS PM-1)](https://science.nasa.gov/mission/aqua/)**<br><sub>NORAD 27424</sub> | NASA | 2002-05-04 | LEO, sun-synchronous ~705 km as launched (1:30 p.m. crossing); free-drifting since leaving the A-Train in Jan 2022 | **MODIS**: 36-band imager: ocean color, aerosols, clouds, sea-surface temperature, snow and ice.<br>**AIRS**: Infrared sounder profiling atmospheric temperature and water vapor.<br>**AMSU-A**: Microwave sounder measuring temperature through clouds.<br>**CERES**: Radiometers measuring reflected sunlight and emitted heat (Earth's energy budget).<br>**AMSR-E**: Microwave radiometer (rain, sea ice, soil moisture); off since March 2016.<br>**HSB**: Humidity sounder (Brazil); non-operational since a February 2003 anomaly. | Aqua (Latin for water) tracks Earth's water cycle: evaporation, water vapor, clouds, rain, sea ice, snow and ocean color, plus aerosols and the planet's energy balance, over 20+ years. | Chlorophyll-a · MODIS Aqua<br>MODIS_Aqua_Aerosol_Optical_Depth_3km<br>3D model (NASA 3D Resources) |
+| **[Aqua (EOS PM-1)](https://science.nasa.gov/mission/aqua/)**<br><sub>NORAD 27424</sub> | NASA | 2002-05-04 | LEO, sun-synchronous ~705 km as launched (1:30 p.m. crossing); free-drifting since leaving the A-Train in Jan 2022 | **MODIS**: 36-band imager: ocean color, aerosols, clouds, sea-surface temperature, snow and ice.<br>**AIRS**: Infrared sounder profiling atmospheric temperature and water vapor.<br>**AMSU-A**: Microwave sounder measuring temperature through clouds.<br>**CERES**: Radiometers measuring reflected sunlight and emitted heat (Earth's energy budget).<br>**AMSR-E**: Microwave radiometer (rain, sea ice, soil moisture); off since March 2016.<br>**HSB**: Humidity sounder (Brazil); non-operational since a February 2003 anomaly. | Aqua (Latin for water) tracks Earth's water cycle: evaporation, water vapor, clouds, rain, sea ice, snow and ocean color, plus aerosols and the planet's energy balance, over 20+ years. | Chlorophyll-a · MODIS Aqua<br>MODIS_Aqua_Aerosol_Optical_Depth_3km<br>MODIS Aqua · true colour (daily)<br>3D model (NASA 3D Resources) |
 | **[Suomi NPP (Suomi National Polar-orbiting Partnership)](https://science.nasa.gov/mission/suomi-npp/)**<br><sub>NORAD 37849</sub> | NOAA/NASA | 2011-10-28 | LEO, sun-synchronous ~833 km, 1:25 p.m. ascending node | **VIIRS**: Visible/infrared imager: clouds, fires, snow, ocean color, aerosols and night lights.<br>**ATMS**: Microwave sounder that sees through clouds to profile atmospheric temperature and moisture.<br>**CrIS**: Infrared sounder with thousands of channels for 3D temperature and humidity profiles.<br>**OMPS**: Ozone mapper and profiler tracking the ozone layer, volcanic SO2 and stratospheric aerosols.<br>**CERES**: Radiometer measuring sunlight reflected and heat emitted by Earth (the energy budget). | Bridges NASA's EOS era and NOAA's JPSS weather satellites, observing clouds, oceans, vegetation, ice and the atmosphere for weather forecasts and long-term climate records, including night-time light imagery. | VIIRS Suomi NPP · true colour (daily)<br>VIIRS Suomi NPP fires 375 m<br>Night lights · VIIRS day/night band (nightly)<br>Aerosol optical depth · VIIRS Suomi NPP<br>3D model (NASA 3D Resources) |
 | **[NOAA-20 (JPSS-1)](https://www.nesdis.noaa.gov/our-satellites/currently-flying/joint-polar-satellite-system)**<br><sub>NORAD 43013</sub> | NOAA/NASA | 2017-11-18 | LEO, sun-synchronous ~833 km, 1:25 p.m. ascending node | **VIIRS**: Visible/infrared imager: clouds, fires, snow, ocean color, aerosols and night lights.<br>**ATMS**: Microwave sounder that sees through clouds to profile atmospheric temperature and moisture.<br>**CrIS**: Infrared sounder with thousands of channels for 3D temperature and humidity profiles.<br>**OMPS**: Ozone mapper and profiler tracking the ozone layer, volcanic SO2 and stratospheric aerosols.<br>**CERES**: Radiometer measuring sunlight reflected and heat emitted by Earth (the energy budget). | A NOAA polar weather satellite circling pole to pole 14 times a day. Its temperature and moisture soundings feed forecast models, and its imagery tracks storms, fires, snow, ice and ocean color. | VIIRS NOAA-20 · true colour (daily)<br>VIIRS NOAA-20 fires 375 m<br>3D model (NASA 3D Resources) |
 | **[NOAA-21 (JPSS-2)](https://www.nesdis.noaa.gov/our-satellites/currently-flying/joint-polar-satellite-system)**<br><sub>NORAD 54234</sub> | NOAA/NASA | 2022-11-10 | LEO, sun-synchronous (~833 km JPSS orbit), 1:25 p.m. ascending node | **VIIRS**: Visible/infrared imager: clouds, fires, snow, ocean color, aerosols and night lights.<br>**ATMS**: Microwave sounder that sees through clouds to profile atmospheric temperature and moisture.<br>**CrIS**: Infrared sounder with thousands of channels for 3D temperature and humidity profiles.<br>**OMPS**: Ozone mapper and profiler tracking the ozone layer, volcanic SO2 and stratospheric aerosols. | NOAA's newest polar weather satellite: global temperature and moisture soundings for forecasts, plus imagery of storms, fires, floods, snow and ice, and ozone monitoring. | VIIRS NOAA-21 · true colour (daily)<br>VIIRS NOAA-21 fires 375 m<br>3D model (NASA 3D Resources) |
@@ -196,6 +221,10 @@ carry the attributions. The code's MIT licence does not cover the data.
 | [ASF DAAC](https://asf.alaska.edu) SearchAPI | NISAR footprints and browse images | NASA data, free and open. Cite "ASF DAAC 2026, contains modified NISAR data" (NASA/JPL-Caltech, ISRO). Products are provisional; downloads need a free NASA Earthdata login. |
 | [PO.DAAC Hydrocron](https://podaac.github.io/hydrocron/) | SWOT river and lake heights | NASA data, free and open (NASA/JPL, CNES). Values are provisional and are reprocessed under new version letters (CRID). |
 | [Microsoft Planetary Computer](https://planetarycomputer.microsoft.com) · Copernicus Sentinel-1 | radar search, tiles and analysis | "Contains modified Copernicus Sentinel data [2025–2026]" under the [Copernicus Sentinel data legal notice](https://sentinel.esa.int/documents/247904/690755/Sentinel_Data_Legal_Notice) (free, full and open). The RTC product (processed by Catalyst) is CC BY 4.0; access is under the [Planetary Computer terms of use](https://planetarycomputer.microsoft.com/terms), with anonymous short-lived tokens. |
+| [Sentinel-2 L2A](https://planetarycomputer.microsoft.com/dataset/sentinel-2-l2a) via Planetary Computer | Point report: optical scenes | "Contains modified Copernicus Sentinel data [2025–2026]", Copernicus Sentinel data legal notice (free, full and open). |
+| [Landsat Collection 2 Level-2](https://planetarycomputer.microsoft.com/dataset/landsat-c2-l2) via Planetary Computer | Point report: optical scenes | Courtesy of the U.S. Geological Survey; public domain. |
+| [HLS v2.0](https://planetarycomputer.microsoft.com/dataset/hls2-l30) (L30, S30) via Planetary Computer | Point report: optical scenes | NASA LP DAAC; free and open (contains modified Copernicus Sentinel data for S30). |
+| [NASA Earthdata GIS](https://gis.earthdata.nasa.gov) SWOT RiverSP reach service | Point report: SWOT reaches near a point | NASA/JPL, CNES; free and open, keyless. Values are provisional. |
 | [ESA WorldCover 2021 v200](https://esa-worldcover.org) | land mask for ship detection | "© ESA WorldCover project 2021 / Contains modified Copernicus Sentinel data (2021) processed by ESA WorldCover consortium", **CC BY 4.0**. |
 | [EOxCloudless 2025](https://cloudless.eox.at) (EOX IT Services) | hi-res backdrop when zoomed in | "EOxCloudless https://cloudless.eox.at by EOX IT Services GmbH (Contains modified Copernicus Sentinel data 2025)", **CC BY-NC-SA 4.0: non-commercial use only.** For commercial use, switch off *Hi-res backdrop* under *Imagery & terrain* (or remove it from `static/js/imagery.js`). |
 | [Mapzen / AWS Terrain Tiles](https://registry.opendata.aws/terrain-tiles/) | 3D terrain | Open data from many sources (SRTM, GMTED2010, 3DEP, ETOPO1, EU-DEM, ArcticDEM and national agencies); the full attribution list is in the page's About box. |
@@ -276,6 +305,14 @@ source's age.
 Little. Each source is fetched by the server on a fixed schedule or on demand, cached on disk, and shared by every viewer;
 Hydrocron and Global Fishing Watch get one request at a time; NISAR polling starts only once someone opens that layer.
 `/api/status` counts every upstream request.
+</details>
+
+<details>
+<summary><b>Can I find out which satellite has data for my exact coordinates?</b></summary>
+
+Yes: that is the Point report. Type the coordinates in *What sees this spot?* or the search bar, or right-click the globe. It lists the
+satellites over the point now, the passes in the next 24 hours that put the point inside an instrument swath, and the scenes and
+products that already exist there (GIBS, Sentinel-1, Sentinel-2, Landsat, HLS, NISAR, SWOT).
 </details>
 
 <details>

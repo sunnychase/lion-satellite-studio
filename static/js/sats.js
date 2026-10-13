@@ -215,7 +215,7 @@ export function satState(s, tms) {
   const vEcf = eciToEcf(pv.velocity, g);
   return { ecf, eci: pv.position, vel: pv.velocity, vEcf, gmst: g, lat: radiansToDegrees(geo.latitude), lon: radiansToDegrees(geo.longitude), alt: geo.height };
 }
-function sunEcf(tms) {
+export function sunEcf(tms) {
   const d = new Date(tms);
   const s = sunPos(jday(d));
   const AU = 149597870.7;

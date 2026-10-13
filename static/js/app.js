@@ -5,6 +5,7 @@ import * as IM from './imagery.js';
 import * as SAT from './sats.js';
 import * as D from './data.js';
 import * as RD from './radar.js';
+import * as PT from './point.js';
 
 const C = window.Cesium;
 C.Ion.defaultAccessToken = 'unused-no-ion'; // Cesium ion is never used: no ion imagery, terrain or geocoder.
@@ -23,7 +24,7 @@ function makeViewer() {
   const s = v.scene;
   App.viewer = v; App.scene = s;
   window.LE = App; // handy for debugging & headless checks
-  App.api = { SAT, IM, D, RD };
+  App.api = { SAT, IM, D, RD, PT };
   s.globe.baseColor = C.Color.fromCssColorString('#0a1424');
   s.globe.showGroundAtmosphere = true;
   s.globe.enableLighting = true;
@@ -315,6 +316,10 @@ function setupSearch() {
     const pm = (n, alts) => n.toLowerCase().includes(ql) || (alts || []).some(a => a.toLowerCase().includes(ql));
     GAZ.countries.filter(c => pm(c[0], c[5])).slice(0, 4).forEach(c => items.push({ k: 'country', t: c[0], s: c[1], go: () => flyBox(c[4], c[0]) }));
     GAZ.cities.filter(c => pm(c[0], c[5])).sort((a, b) => a[4] - b[4]).slice(0, 5).forEach(c => items.push({ k: 'city', t: c[0], s: c[1], go: () => App.flyTo({ type: 'region', lon: c[3], lat: c[2], h: 350e3, force: true, reason: c[0] }) }));
+    const pc = PT.parseCoord(q);
+    if (pc) items.unshift({ k: 'point', t: `Point report · ${pc.lat.toFixed(4)}, ${pc.lon.toFixed(4)}`, s: 'what sees this spot?', go: () => PT.lookup(pc.lat, pc.lon) });
+    const c0 = !pc && App.findPlace(q);
+    if (c0) items.push({ k: 'point', t: `What sees ${c0.name}?`, s: 'point report', go: () => PT.lookup(c0.lat, c0.lon, { name: c0.name }) });
     items = items.slice(0, 14);
     focus = -1;
     box.replaceChildren(...(items.length ? items.map((it, i) => el('button', { class: 'res', role: 'option', onclick: () => pick(i) }, el('span', { class: 'k' }, it.k), el('span', {}, it.t), el('span', { class: 's' }, it.s))) : [el('div', { class: 'empty' }, 'No match in loaded satellites, SWOT list or the built-in gazetteer.')]));
@@ -338,7 +343,7 @@ function flyBox(b, name) {
 
 // ================================================================ panel
 const SECTIONS = [
-  ['explore', 'Explore', 'gold'], ['sats', 'Satellites', 'sat'], ['time', 'Time', 'gold'], ['imagery', 'Imagery & terrain', 'gold'],
+  ['explore', 'Explore', 'gold'], ['point', 'What sees this spot?', 'gold'], ['sats', 'Satellites', 'sat'], ['time', 'Time', 'gold'], ['imagery', 'Imagery & terrain', 'gold'],
   ['nrt', 'Near real time', 'sat'], ['science', 'Earth science layers', 'gold'], ['overlays', 'Overlays', 'gold'],
   ['radar', 'Radar (Sentinel-1)', 'radar'], ['nisar', 'NISAR radar', 'radar'], ['swot', 'SWOT water', 'water'], ['quakes', 'Earthquakes', 'quake'], ['ships', 'Ships', 'ship'], ['about', 'About & credits', 'gold'],
 ];
@@ -496,6 +501,7 @@ const saveHash = debounce(() => {
   const p = new URLSearchParams();
   p.set('b', S.base); if (S.date) p.set('d', S.date); if (S.science) p.set('s', S.science); if (S.nrt) p.set('n', S.nrt);
   if (App.selected) p.set('sel', `${App.selected.kind}:${App.selected.id}`);
+  if (App.selected && App.selected.kind === 'point') p.set('pt', App.selected.id);
   p.set('cam', [C.Math.toDegrees(c.longitude).toFixed(3), C.Math.toDegrees(c.latitude).toFixed(3), Math.round(c.height), C.Math.toDegrees(cam.heading).toFixed(1), C.Math.toDegrees(cam.pitch).toFixed(1)].join(','));
   if (App.data.nisar.on) p.set('nisar', App.data.nisar.days);
   if (App.data.swot.on) p.set('swot', '1');
@@ -518,6 +524,13 @@ async function restoreHash() {
     const cam = (p.get('cam') || '').split(',').map(Number);
     if (cam.length === 5 && cam.every(x => !isNaN(x))) {
       App.viewer.camera.setView({ destination: C.Cartesian3.fromDegrees(cam[0], cam[1], cam[2]), orientation: { heading: C.Math.toRadians(cam[3]), pitch: C.Math.toRadians(cam[4]), roll: 0 } });
+    }
+    const ptq = (p.get('pt') || '').split(',').map(Number);
+    if (ptq.length === 2 && ptq.every(Number.isFinite)) {
+      App.lastUserInput = Date.now();
+      const fly = !(cam.length === 5 && cam.every(x => !isNaN(x)));
+      const go = (n = 0) => (App.sats.sats.length && App.layers.catalog.length) || n > 40 ? PT.lookup(ptq[0], ptq[1], { fly }) : setTimeout(() => go(n + 1), 500);
+      setTimeout(go, 600);
     }
     const sel = p.get('sel');
     if (sel) {
@@ -556,6 +569,7 @@ function attributionLine() {
   if (App.data.nisar.on) parts.push('NISAR: NASA/JPL-Caltech, ISRO via ASF DAAC');
   if (App.data.swot.on) parts.push('SWOT: NASA/CNES via PO.DAAC');
   if (App.data.radar && App.data.radar.on) parts.push('Contains modified Copernicus Sentinel data 2026 · Sentinel-1 RTC (Catalyst) via Microsoft Planetary Computer');
+  if (PT.opticalCredit()) parts.push(PT.opticalCredit());
   if (App.data.ships.on) parts.push('AIS: aisstream.io');
   if (App.data.ships.gfwOn) parts.push('Powered by Global Fishing Watch (non-commercial)');
   parts.push('Borders: Natural Earth', 'CesiumJS');
@@ -596,6 +610,7 @@ function capture() {
 // ================================================================ explore tours
 const TOURS = [
   { id: 'iss', icon: '🛰', title: 'Ride along with the ISS', sub: 'live position, orbit & passes', c: FAMILY.sat },
+  { id: 'point', icon: '📍', title: 'What sees this spot?', sub: 'Golden Gate: satellites, passes & data', c: FAMILY.gold },
   { id: 'goes', icon: '🌎', title: 'The Americas from GOES right now', sub: 'GeoColor every 10 minutes', c: '#7fd3ff' },
   { id: 'fires', icon: '🔥', title: 'Fires burning today', sub: 'VIIRS 375 m + MODIS', c: FAMILY.fire },
   { id: 'swot', icon: '🌊', title: 'Rivers from space (SWOT)', sub: 'water heights, tap a river', c: FAMILY.water },
@@ -682,6 +697,14 @@ async function runTour(id) {
       await wait(7000);
     } else if (id === 's1clouds') {
       try { await RD.tourClouds(show, wait); } finally { RD.endTourClouds(); }
+    } else if (id === 'point') {
+      PT.lookup(37.8199, -122.4783, { name: 'Golden Gate Bridge', h: 9e5 });
+      show(1, 3, 'Point report for the Golden Gate Bridge (37.8199, −122.4783): every satellite and dataset that sees this exact spot.');
+      await wait(7000);
+      show(2, 3, 'Satellites above it now, and the next passes that put it inside an instrument swath, computed from today’s orbits.');
+      await wait(8000);
+      show(3, 3, 'Then the imagery and products that already exist here: GIBS, Sentinel-1 and -2, Landsat, NISAR, SWOT. Tap a row to show it; right-click (or long-press) anywhere for your own spot.');
+      await wait(9000);
     } else if (id === 'dark') {
       App.data.ships.gfwOn = true;
       openSection('ships', true);
@@ -756,6 +779,7 @@ function buildAbout(status) {
   <li><b>NISAR</b> — NASA/JPL-Caltech and ISRO; data via the Alaska Satellite Facility DAAC (ASF SearchAPI). NASA data are free and open; cite “ASF DAAC 2026, contains modified NISAR data”.</li>
   <li><b>SWOT</b> — NASA/JPL and CNES; Hydrocron time series via NASA PO.DAAC.</li>
   <li><b>Sentinel-1</b> — “Contains modified Copernicus Sentinel data [2025–2026]”, used under the <a href="https://sentinel.esa.int/documents/247904/690755/Sentinel_Data_Legal_Notice" target="_blank" rel="noopener">Copernicus Sentinel data legal notice</a> (free, full and open). The radiometrically terrain corrected (RTC) γ⁰ product is processed by Catalyst and published on <b>Microsoft Planetary Computer</b> under <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>; search, tiles and data are used under the <a href="https://planetarycomputer.microsoft.com/terms" target="_blank" rel="noopener">Planetary Computer terms of use</a>. Data are read with anonymous, short-lived SAS tokens (no subscription key; PC rate-limits anonymous use; its RTC docs say an account may be required, so the analysis disables itself if tokens are refused). False-colour render adapted from Sentinel Hub custom scripts (CC BY 4.0), as documented by PC. Analyses are automatic estimates, not validated.</li>
+  <li><b>Point report data</b> — <b>Sentinel-2 L2A</b>: “Contains modified Copernicus Sentinel data [2025–2026]” (Copernicus Sentinel data legal notice); <b>Landsat Collection 2 Level-2</b>: courtesy of the U.S. Geological Survey, public domain; <b>HLS v2.0</b> (L30/S30): NASA LP DAAC, free and open; all via Microsoft Planetary Computer (STAC point search and the tiler, under its terms of use). <b>SWOT reaches near a point</b>: SWOT_L2_HR_RiverSP reach (version D) feature service on NASA Earthdata GIS (NASA/JPL, CNES), keyless. NISAR point search: ASF SearchAPI. Pass and swath geometry are computed in your browser.</li>
   <li><b>ESA WorldCover 2021 v200</b> (ship-detection land mask, read server-side from Planetary Computer) — “© ESA WorldCover project 2021 / Contains modified Copernicus Sentinel data (2021) processed by ESA WorldCover consortium”, CC BY 4.0.</li>
   <li><b>3D models</b> — NASA 3D Resources (free to use; NASA Images and Media Usage Guidelines): ISS (NASA/Michael D. Carbajal), Terra (NASA/Christian A. Lopez), Aqua, Landsat 8 (also used for Landsat 9), GPM, ICESat-2, OCO-2, GOES (NASA/Christopher R. Meaney), Suomi NPP (NASA/Brian E. Kumanchik, Christian A. Lopez; also used for NOAA-20/21), GRACE (NASA/Christopher M. Garcia; stand-in for GRACE-FO). Generic model for SMAP, SWOT, PACE, NISAR and IS-40E.</li>
   <li><b>Natural Earth</b> borders and gazetteer — public domain. Made with Natural Earth.</li>
@@ -817,6 +841,7 @@ async function boot() {
   setupButtons();
   setupScaleCompass();
   setupPicking();
+  PT.setupPointPicking();
   idleLoop();
   perfWatch();
   let status = null;
@@ -833,6 +858,7 @@ async function boot() {
   D.buildNisarUI(secBodies.nisar);
   D.buildShipUI(secBodies.ships, status);
   RD.buildRadarUI(secBodies.radar);
+  PT.buildPointUI(secBodies.point);
   secBodies.about.replaceChildren(el('button', { class: 'btn', onclick: () => $('#about').classList.remove('hidden') }, 'Open credits, licences & about'), el('div', { class: 'hint' }, 'Required credits are always shown in small type at the bottom of the map; tap it for the full list.'));
   const satsP = SAT.initSats().then(() => SAT.buildUI(secBodies.sats)).catch(e => { console.error(e); toast('Satellites unavailable right now — retrying in 5 min'); setTimeout(() => SAT.refreshGroups(), 300e3); });
   SAT.buildUI(secBodies.sats);

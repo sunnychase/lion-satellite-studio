@@ -2,6 +2,21 @@
 
 Updates to Lion Satellite Studio, newest first. The project has no version numbers; each entry is dated.
 
+## 2026-10-13 — Point report: what sees this spot?
+
+- **New: Point report.** Type coordinates (decimal or degrees-minutes-seconds) or a place in the new *What sees this spot?* section or the
+  search bar, right-click the globe (long-press on a phone) or use *My location*. The report lists the fleet satellites over the point now
+  (elevation, *imaging now* when the point is inside the current swath), the next 24 h of passes with rise/set, maximum elevation and whether
+  the point falls inside the instrument swath, NASA GIBS daily imagery at that pixel (read client-side), the newest Sentinel-1 RTC,
+  Sentinel-2 L2A, Landsat C2 L2 and HLS scenes over the point, NISAR granules containing it, SWOT reaches within 10 km, earthquakes within
+  300 km (7 days, M2.5+), AIS ships within 50 km (with a key) and the geostationary views with their view zenith angle. Every row flies to
+  the item and turns its layer on; Copy report (Markdown), Download GeoJSON and a `#pt=lat,lon` share link. New Explore tour.
+- **New endpoints** (fixed upstream URLs, validated lat −90..90 / lon −180..180, rounded to 4 dp, cached 1 h on disk, one new point per
+  client every 3 s): `/api/point/stac` (Planetary Computer STAC point search, whitelisted collections), `/api/point/nisar` (ASF SearchAPI
+  `intersectsWith=POINT`), `/api/point/swot` (NASA Earthdata GIS SWOT RiverSP reaches, 1–25 km), `/api/point/tile` (Planetary Computer
+  tiler for Sentinel-2 / Landsat / HLS items: collection whitelist, item-id pattern per collection, z 8–16).
+- MODIS Aqua true colour is a new base layer; the GIBS catalogue is fetched again when the layer whitelist changes.
+
 ## 2026-10-13 (review follow-ups)
 
 - Requests that carry credentials (Global Fishing Watch) no longer follow HTTP redirects, so the token can never be re-sent to another host.

@@ -579,6 +579,21 @@ export async function tourClouds(show, wait) {
   show(3, 3, 'Drag the divider to compare. Radar shows water as dark (smooth), towns and ships as bright; draw a box in the Radar section to analyse it. Tap Done to end the swipe.');
   await wait(600000); // the swipe stays until the user taps Done
 }
+// open the radar layer on one scene (from the Point report): search that day around the point, select its pass
+export async function showScene(s, lat, lon) {
+  R.date = s.dt.slice(0, 10); R.sel = null; R.cmp = null; R.split = false;
+  const di = document.querySelector('input[aria-label="radar date"]'); if (di) di.value = R.date;
+  if (!R.on) { R.on = true; if (R.ds) R.ds.show = true; const t = $('#s1-toggle input'); if (t) t.checked = true; }
+  App.lastUserInput = 0;
+  await new Promise(res => App.viewer.camera.flyTo({ destination: C.Cartesian3.fromDegrees(lon, lat, 160e3), duration: App.reducedMotion ? 0 : 1.6, complete: res, cancel: res }));
+  R.lastQs = null; await search(true);
+  const p = R.passes.find(x => x.ids.includes(s.id));
+  if (!p) { toast('That scene did not come back for this view — try “Search here” in the Radar section'); return; }
+  R.sel = p.pid; drawFootprints(); showSelected(); renderList();
+  App.openSection('radar', false);
+  App.events.dispatchEvent(new Event('layers'));
+  toast(`Sentinel-1 · ${passLabel(p, true)}`, 4000);
+}
 export function endTourClouds() {
   R.tourSplit = false;
   if (App.layers.il.base) App.layers.il.base.splitDirection = C.SplitDirection.NONE;
