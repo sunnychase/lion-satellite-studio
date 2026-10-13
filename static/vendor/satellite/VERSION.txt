@@ -1,0 +1,1 @@
+satellite.js 7.1.0 sha1 aafa94d741f43cfb7f58f27360f1bb8dd53d5246 (npm registry)

@@ -1,0 +1,5 @@
+# Core: nothing to install. server.py uses only the Python standard library (Python 3.10+),
+# including its own small WebSocket client for the optional aisstream.io feed.
+#
+# Optional radar extras (Sentinel-1 water, change, ship and time-series analysis):
+#   python3 -m venv venv && venv/bin/pip install -r requirements-radar.txt

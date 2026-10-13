@@ -1,0 +1,358 @@
+{
+ "licence": "NASA 3D Resources: All of these assets are free to download and use. They are also mirrored on GitHub. Refer to the NASA Images and Media Usage Guidelines. (https://science.nasa.gov/3d-resources/ ; guidelines https://www.nasa.gov/nasa-brand-center/images-and-media/)",
+ "upAxis": "Y (glTF)",
+ "models": {
+  "iss": {
+   "file": "iss.glb",
+   "bytes": 177492,
+   "triangles": 29799,
+   "bboxMin": [
+    -2.8305,
+    -4.1694,
+    -22.8646
+   ],
+   "bboxMax": [
+    3.2882,
+    25.7728,
+    22.6797
+   ],
+   "extent": [
+    6.1187,
+    29.9422,
+    45.5444
+   ],
+   "longestModelUnits": 45.5444,
+   "realLongestM": 109.0,
+   "realSizeSource": "Wikipedia ISS infobox: 109 m overall length (94 m truss), 73 m solar-array width",
+   "metresPerUnit": 2.393271,
+   "axes": "Z = truss axis; solar arrays extend along Y; thin axis X",
+   "sourcePage": "https://science.nasa.gov/3d-resources/international-space-station-iss-b/",
+   "sourceFile": "https://assets.science.nasa.gov/content/dam/science/cds/3d/resources/model/international-space-station-(iss)-(b)/International%20Space%20Station%20(ISS)%20(B).glb",
+   "credit": "NASA/Michael D. Carbajal",
+   "note": "7 stray disc-shaped helper nodes at y~41 removed; contains 4 animations (Cesium plays them only if requested)",
+   "scaleBasis": "109 m overall length matched to model Z extent 45.544 (cross-check: 73 m array width vs Y 29.94 -> 2.44 m/unit)"
+  },
+  "terra": {
+   "file": "terra.glb",
+   "bytes": 20588,
+   "triangles": 4159,
+   "bboxMin": [
+    -6811.471,
+    -4436.8426,
+    -5025.5496
+   ],
+   "bboxMax": [
+    6811.4716,
+    5833.2367,
+    21026.9144
+   ],
+   "extent": [
+    13622.9426,
+    10270.0793,
+    26052.464
+   ],
+   "longestModelUnits": 26052.464,
+   "realLongestM": null,
+   "realSizeSource": "not found in the pages checked",
+   "metresPerUnit": null,
+   "axes": "Z = solar array (extends +Z from bus)",
+   "sourcePage": "https://science.nasa.gov/3d-resources/terra/",
+   "sourceFile": "https://assets.science.nasa.gov/content/dam/science/cds/3d/resources/model/terra/Terra.glb",
+   "credit": "NASA/Christian A. Lopez",
+   "note": "external TGA textures (Terra.fbm/*.tga) were never published; texture refs removed, base colours kept"
+  },
+  "aqua": {
+   "file": "aqua.glb",
+   "bytes": 723572,
+   "triangles": 80339,
+   "bboxMin": [
+    -4.5049,
+    -16.3,
+    -3.1169
+   ],
+   "bboxMax": [
+    4.9227,
+    1.4843,
+    1.7814
+   ],
+   "extent": [
+    9.4276,
+    17.7843,
+    4.8983
+   ],
+   "longestModelUnits": 17.7843,
+   "realLongestM": 16.7,
+   "realSizeSource": "Wikipedia Aqua: deployed 4.81 x 16.70 x 8.04 m",
+   "metresPerUnit": 0.939032,
+   "axes": "Y = solar array (extends -Y from bus)",
+   "sourcePage": "https://science.nasa.gov/3d-resources/aqua-c/",
+   "sourceFile": "https://assets.science.nasa.gov/content/dam/science/cds/3d/resources/model/aqua-(c)/Aqua%20(C).glb",
+   "credit": "NASA/Christopher R. Meaney",
+   "note": "",
+   "scaleBasis": "16.70 m deployed dimension matched to model Y 17.784"
+  },
+  "landsat8": {
+   "file": "landsat8.glb",
+   "bytes": 687036,
+   "triangles": 72977,
+   "bboxMin": [
+    -2.4851,
+    -8.6982,
+    -2.5189
+   ],
+   "bboxMax": [
+    2.4853,
+    1.3388,
+    9.7406
+   ],
+   "extent": [
+    4.9705,
+    10.0371,
+    12.2595
+   ],
+   "longestModelUnits": 12.2595,
+   "realLongestM": null,
+   "realSizeSource": "not found in the pages checked",
+   "metresPerUnit": null,
+   "axes": "array canted in the Y-Z plane (toward -Y,+Z); bbox long axis Z",
+   "sourcePage": "https://science.nasa.gov/3d-resources/landsat-8/",
+   "sourceFile": "https://assets.science.nasa.gov/content/dam/science/cds/3d/resources/model/landsat-8/Landsat%208.glb",
+   "credit": "NASA/Christopher R. Meaney",
+   "note": ""
+  },
+  "landsat9": {
+   "file": "landsat9.glb",
+   "bytes": 687036,
+   "triangles": 72977,
+   "bboxMin": [
+    -2.4851,
+    -8.6982,
+    -2.5189
+   ],
+   "bboxMax": [
+    2.4853,
+    1.3388,
+    9.7406
+   ],
+   "extent": [
+    4.9705,
+    10.0371,
+    12.2595
+   ],
+   "longestModelUnits": 12.2595,
+   "realLongestM": null,
+   "realSizeSource": "Wikipedia Landsat 9: 4.6 x 3 x 3 m (likely stowed)",
+   "metresPerUnit": null,
+   "axes": "same as landsat8",
+   "sourcePage": "https://science.nasa.gov/3d-resources/landsat-8/",
+   "sourceFile": "https://assets.science.nasa.gov/content/dam/science/cds/3d/resources/model/landsat-8/Landsat%208.glb",
+   "credit": "NASA/Christopher R. Meaney (Landsat 8 model used as stand-in)",
+   "note": "STAND-IN: byte-identical copy of landsat8.glb; only NASA L9 asset is a disassembled 3D-print STL kit"
+  },
+  "gpm": {
+   "file": "gpm.glb",
+   "bytes": 1780224,
+   "triangles": 228645,
+   "bboxMin": [
+    -94.6214,
+    -137.8072,
+    -156.5601
+   ],
+   "bboxMax": [
+    94.9847,
+    130.5808,
+    275.3359
+   ],
+   "extent": [
+    189.6062,
+    268.3879,
+    431.8961
+   ],
+   "longestModelUnits": 431.8961,
+   "realLongestM": null,
+   "realSizeSource": "not found in the pages checked",
+   "metresPerUnit": null,
+   "axes": "Z = solar array (extends +Z)",
+   "sourcePage": "https://science.nasa.gov/3d-resources/global-precipitation-measurement/",
+   "sourceFile": "https://assets.science.nasa.gov/content/dam/science/cds/3d/resources/model/global-precipitation-measurement/Global%20Precipitation%20Measurement.glb",
+   "credit": "NASA/Christopher R. Meaney",
+   "note": ""
+  },
+  "icesat2": {
+   "file": "icesat2.glb",
+   "bytes": 1226688,
+   "triangles": 149617,
+   "bboxMin": [
+    -1.8061,
+    -1.2298,
+    -0.9415
+   ],
+   "bboxMax": [
+    1.937,
+    1.1546,
+    6.6197
+   ],
+   "extent": [
+    3.7431,
+    2.3844,
+    7.5612
+   ],
+   "longestModelUnits": 7.5612,
+   "realLongestM": null,
+   "realSizeSource": "Wikipedia ICESat-2: bus 2.5 x 1.9 x 3.8 m at launch (array span not given)",
+   "metresPerUnit": null,
+   "axes": "Z = solar array (extends +Z)",
+   "sourcePage": "https://science.nasa.gov/3d-resources/ice-clouds-and-land-elevation-satellite-2-icesat-2-a/",
+   "sourceFile": "https://assets.science.nasa.gov/content/dam/science/cds/3d/resources/model/ice,-clouds,-and-land-elevation-satellite-2-(icesat-2)-(a)/Ice,%20Clouds,%20and%20Land%20Elevation%20Satellite-2%20(ICESat-2)%20(A).glb",
+   "credit": "NASA/Christopher R. Meaney",
+   "note": ""
+  },
+  "oco2": {
+   "file": "oco2.glb",
+   "bytes": 366520,
+   "triangles": 40076,
+   "bboxMin": [
+    -3.2755,
+    -0.0712,
+    -19.9326
+   ],
+   "bboxMax": [
+    4.3504,
+    15.3423,
+    19.9326
+   ],
+   "extent": [
+    7.6258,
+    15.4135,
+    39.8653
+   ],
+   "longestModelUnits": 39.8653,
+   "realLongestM": null,
+   "realSizeSource": "Wikipedia OCO-2: stowed 2.12 x 0.94 m (deployed span not given)",
+   "metresPerUnit": null,
+   "axes": "Z = two solar wings (+/-Z); bus along Y",
+   "sourcePage": "https://science.nasa.gov/3d-resources/orbiting-carbon-observatory-oco-2/",
+   "sourceFile": "https://assets.science.nasa.gov/content/dam/science/cds/3d/resources/model/orbiting-carbon-observatory-(oco)-2/Orbiting%20Carbon%20Observatory%20(OCO)%202.glb",
+   "credit": "NASA/Christopher R. Meaney",
+   "note": ""
+  },
+  "goes": {
+   "file": "goes.glb",
+   "bytes": 320772,
+   "triangles": 38003,
+   "bboxMin": [
+    -0.0973,
+    -0.0843,
+    -0.0853
+   ],
+   "bboxMax": [
+    0.0372,
+    0.0376,
+    0.026
+   ],
+   "extent": [
+    0.1344,
+    0.122,
+    0.1113
+   ],
+   "longestModelUnits": 0.1344,
+   "realLongestM": null,
+   "realSizeSource": "NOAA NESDIS GOES-R: 6.1 x 5.6 x 3.9 m (overall spacecraft; excludes 8 m magnetometer boom per Wikipedia)",
+   "metresPerUnit": null,
+   "axes": "X = solar array (extends -X); magnetometer boom diagonal",
+   "sourcePage": "https://science.nasa.gov/3d-resources/geostationary-operational-environmental-satellites/",
+   "sourceFile": "https://assets.science.nasa.gov/content/dam/science/cds/3d/resources/model/geostationary-operational-environmental-satellites/Geostationary%20Operational%20Environmental%20Satellites.glb",
+   "credit": "NASA/Christopher R. Meaney",
+   "note": "model units tiny (0.134 longest)"
+  },
+  "jpss": {
+   "file": "jpss.glb",
+   "bytes": 163612,
+   "triangles": 4024,
+   "bboxMin": [
+    -1.289,
+    -1.9093,
+    -0.6864
+   ],
+   "bboxMax": [
+    1.2797,
+    2.2739,
+    8.2725
+   ],
+   "extent": [
+    2.5687,
+    4.1833,
+    8.9589
+   ],
+   "longestModelUnits": 8.9589,
+   "realLongestM": null,
+   "realSizeSource": "Wikipedia Suomi NPP: 1.3 x 1.3 x 4.2 m (bus)",
+   "metresPerUnit": 1.004,
+   "axes": "Z = solar array (extends +Z)",
+   "sourcePage": "https://science.nasa.gov/3d-resources/suomi-national-polar-orbiting-partnership-suomi-npp/",
+   "sourceFile": "https://assets.science.nasa.gov/content/dam/science/cds/3d/resources/model/suomi-national-polar-orbiting-partnership-(suomi-npp)/Suomi%20National%20Polar-orbiting%20Partnership%20(Suomi%20NPP).glb",
+   "credit": "NASA/Brian E. Kumanchik; NASA/Christian A. Lopez",
+   "note": "Suomi NPP model; NOAA-20/21 have no NASA model",
+   "scaleBasis": "bus length 4.2 m (Wikipedia) matched to model Y extent 4.1833; deployed array span not published in sources checked"
+  },
+  "gracefo": {
+   "file": "gracefo.glb",
+   "bytes": 147948,
+   "triangles": 3961,
+   "bboxMin": [
+    -2.3333,
+    -2.0465,
+    -4.3564
+   ],
+   "bboxMax": [
+    2.4758,
+    1.1513,
+    3.5122
+   ],
+   "extent": [
+    4.809,
+    3.1978,
+    7.8685
+   ],
+   "longestModelUnits": 7.8685,
+   "realLongestM": 3.123,
+   "realSizeSource": "Wikipedia: GRACE-FO 1.943 x 3.123 x 0.78 m (GRACE 1.942 x 3.123 x 0.72 m)",
+   "metresPerUnit": 0.396897,
+   "axes": "Z = body long axis (no deployable arrays); mast along -Y",
+   "sourcePage": "https://science.nasa.gov/3d-resources/gravity-recovery-and-climate-experiment-grace-b/",
+   "sourceFile": "https://assets.science.nasa.gov/content/dam/science/cds/3d/resources/model/gravity-recovery-and-climate-experiment-(grace)-(b)/Gravity%20Recovery%20and%20Climate%20Experiment%20(GRACE)%20(B).glb",
+   "credit": "NASA/Christopher M. Garcia (GRACE model used as stand-in)",
+   "note": "STAND-IN: original GRACE model; GRACE-FO is a near-identical design",
+   "scaleBasis": "3.123 m length matched to model Z 7.8685 (cross-check: 1.943 m width vs X 4.809 -> 0.404 m/unit)"
+  },
+  "generic": {
+   "file": "generic.glb",
+   "bytes": 7448,
+   "triangles": 84,
+   "bboxMin": [
+    -4.1,
+    -0.94,
+    -0.5
+   ],
+   "bboxMax": [
+    4.1,
+    0.7,
+    0.5
+   ],
+   "extent": [
+    8.2,
+    1.64,
+    1.0
+   ],
+   "longestModelUnits": 8.2,
+   "realLongestM": 8.2,
+   "realSizeSource": "model units are metres by construction",
+   "metresPerUnit": 1.0,
+   "axes": "X = solar array span",
+   "sourcePage": "procedural",
+   "sourceFile": "~/globe-build/tools/make_generic.py",
+   "credit": "procedural (Lion Satellite Studio), no third-party content",
+   "note": ""
+  }
+ }
+}

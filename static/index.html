@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#0d0e10">
+<meta name="description" content="Lion Satellite Studio — a 3D globe of open satellite data in real time.">
+<title>Lion Satellite Studio</title>
+<link rel="icon" href="img/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="vendor/cesium/Widgets/widgets.css">
+<link rel="stylesheet" href="css/app.css">
+<script>window.CESIUM_BASE_URL = 'vendor/cesium/';</script>
+<script src="vendor/cesium/Cesium.js"></script>
+</head>
+<body>
+<div id="globe" aria-label="3D globe"></div>
+
+<header id="hud" class="glass-bar">
+  <div class="brand" title="Lion Satellite Studio">
+    <svg class="mark" viewBox="0 0 32 32" aria-hidden="true"><defs><linearGradient id="g1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f3d58a"/><stop offset="1" stop-color="#b8892f"/></linearGradient></defs><circle cx="16" cy="16" r="13.5" fill="none" stroke="url(#g1)" stroke-width="1.6"/><ellipse cx="16" cy="16" rx="6" ry="13.5" fill="none" stroke="url(#g1)" stroke-width="1.1" opacity=".8"/><path d="M2.6 12h26.8M2.6 20h26.8" stroke="url(#g1)" stroke-width="1" opacity=".7"/><circle cx="25.5" cy="7" r="2.2" fill="#38e1ff"/></svg>
+    <span class="wm"><b>LION</b> SATELLITE STUDIO</span>
+  </div>
+  <div id="chips" class="chips" aria-live="polite"></div>
+  <div class="hud-right">
+    <span id="utc" class="mono clock" title="UTC (simulated time when sped up)">--:--:-- UTC</span>
+    <button class="icon-btn" id="btn-ticker" title="Live ticker" aria-label="toggle ticker"><svg viewBox="0 0 24 24"><path d="M3 7h18M3 12h12M3 17h16"/></svg></button>
+    <button class="icon-btn" id="btn-capture" title="Capture PNG" aria-label="capture"><svg viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg></button>
+    <button class="icon-btn" id="btn-share" title="Copy share link" aria-label="share"><svg viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.66 0l3-3a4 4 0 0 0-5.66-5.66l-1 1M14 10a4 4 0 0 0-5.66 0l-3 3a4 4 0 0 0 5.66 5.66l1-1"/></svg></button>
+    <button class="icon-btn" id="btn-full" title="Fullscreen" aria-label="fullscreen"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+    <button class="icon-btn" id="btn-about" title="About & credits" aria-label="about"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></svg></button>
+  </div>
+</header>
+
+<aside id="panel" class="glass" aria-label="controls">
+  <div class="sheet-handle" id="sheet-handle" aria-hidden="true"><span></span></div>
+  <div class="panel-head">
+    <div class="search">
+      <svg viewBox="0 0 24 24" class="s-ic"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>
+      <input id="search" type="search" placeholder="Search satellite, NORAD id, place, river…" autocomplete="off" aria-label="search">
+      <div id="search-results" class="results glass" role="listbox" hidden></div>
+    </div>
+    <button class="icon-btn" id="btn-collapse" title="Collapse panel" aria-label="collapse panel"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
+  </div>
+  <div class="panel-body" id="panel-body"></div>
+</aside>
+<button id="panel-open" class="glass icon-btn hidden" aria-label="open panel" title="Open panel"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+
+<nav id="crumb" class="glass crumb hidden" aria-label="breadcrumb"></nav>
+<section id="card" class="glass card hidden" aria-live="polite">
+  <div class="card-head"><span class="dot" id="card-dot"></span><h2 id="card-title"></h2><button class="icon-btn" id="card-close" aria-label="close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div class="card-body" id="card-body"></div>
+</section>
+<div id="legend" class="glass legend hidden"></div>
+
+<div id="camctl" class="camctl">
+  <button class="glass icon-btn" id="btn-compass" title="Reset north" aria-label="compass"><svg viewBox="0 0 24 24" id="compass-needle"><path d="M12 3l3.2 9H8.8z" fill="#e5484d" stroke="none"/><path d="M12 21l-3.2-9h6.4z" fill="#e8e1cf" stroke="none"/></svg></button>
+  <button class="glass icon-btn" id="btn-zin" title="Zoom in" aria-label="zoom in"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+  <button class="glass icon-btn" id="btn-zout" title="Zoom out" aria-label="zoom out"><svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg></button>
+  <button class="glass txt-btn" id="btn-fit" title="Fit the active data">Fit data</button>
+  <button class="glass txt-btn" id="btn-reset" title="Reset view">Reset view</button>
+</div>
+<div id="scalebar" class="scalebar mono"><span class="bar"></span><span class="lbl">—</span></div>
+<button id="flypill" class="flypill hidden">Fly to data <span></span></button>
+<div id="ticker" class="ticker glass-bar"><div class="track" id="ticker-track"></div></div>
+<div id="tooltip" class="tooltip hidden"></div>
+<div id="toast" class="toast" role="status"></div>
+<div id="coach" class="coach hidden"></div>
+<div id="intro" class="intro hidden"><div class="intro-wm"><span><b>LION</b> SATELLITE STUDIO</span><small>open satellite data, live</small></div><button class="txt-btn ghost" id="intro-skip">Skip</button></div>
+
+<div id="about" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="about-title">
+  <div class="modal-box glass">
+    <div class="card-head"><h2 id="about-title">About Lion Satellite Studio</h2><button class="icon-btn" id="about-close" aria-label="close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <div class="modal-body" id="about-body"></div>
+  </div>
+</div>
+<datalist id="place-list"></datalist>
+<div id="credits-line" class="credits-line"></div>
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

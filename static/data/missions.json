@@ -1,0 +1,845 @@
+{
+  "version": 1,
+  "generated": "2026-10-13T06:11:51Z",
+  "note": "Info-card data keyed by NORAD catalog id. Facts were checked against official/authoritative pages (NASA, NOAA/NESDIS/OSPO, USGS, NSSDCA, CNES, eoPortal) listed per satellite in 'sources'; anything not confirmable was left out. Launch dates are UTC calendar dates. Operational status reflects NOAA OSPO pages as of 2026-10 (GOES-19 = East, GOES-18 = West, GOES-16 = storage/backup; NOAA-21 = primary PM polar). Swath widths are nominal cross-track values; nadir_gap_km is the unobserved strip centered on the ground track.",
+  "missions": {
+    "25544": {
+      "mission": "International Space Station",
+      "operator": "NASA, Roscosmos, ESA, JAXA, CSA (hosts NASA GEDI, OCO-3, ECOSTRESS)",
+      "launch_date": "1998-11-20",
+      "launch_note": "Launch of the first module, Zarya; the station was assembled in orbit over many years.",
+      "orbit": "LEO ~370–460 km",
+      "instruments": [
+        {
+          "name": "GEDI",
+          "desc": "Lidar with 3 lasers making 8 tracks that measure forest canopy height and 3D structure."
+        },
+        {
+          "name": "OCO-3",
+          "desc": "Spectrometer measuring CO2 and plant fluorescence, incl. snapshot maps over cities."
+        },
+        {
+          "name": "ECOSTRESS",
+          "desc": "Thermal radiometer measuring plant temperature to detect water stress (38 m x 69 m pixels)."
+        }
+      ],
+      "measures": "A crewed orbiting laboratory. Its hosted NASA Earth instruments map forest structure (GEDI), carbon dioxide (OCO-3) and plant water stress (ECOSTRESS) at times of day sun-synchronous satellites miss.",
+      "mission_page": "https://www.nasa.gov/reference/international-space-station/",
+      "swaths": [],
+      "gibs_layers": [],
+      "sources": [
+        "https://www.nasa.gov/reference/international-space-station/",
+        "https://www.nasa.gov/international-space-station/international-space-station-assembly-elements/",
+        "https://gedi.umd.edu/mission/mission-overview/",
+        "https://gedi.umd.edu/category/mission-status/",
+        "https://science.nasa.gov/mission/gedi/",
+        "https://science.nasa.gov/mission/oco-3/",
+        "https://ocov3.jpl.nasa.gov/mission/",
+        "https://science.nasa.gov/mission/ecostress/",
+        "https://ecostress.jpl.nasa.gov/mission"
+      ]
+    },
+    "25994": {
+      "mission": "Terra (EOS AM-1)",
+      "operator": "NASA",
+      "launch_date": "1999-12-18",
+      "orbit": "LEO, sun-synchronous ~705 km nominal; lowered ~5 km and drifting to an earlier morning equator crossing (was 10:30 a.m.)",
+      "status": "Active, in extended drift phase; NASA says the lower orbit gives slightly narrower swaths and longer shadows.",
+      "instruments": [
+        {
+          "name": "MODIS",
+          "desc": "36-band imager viewing the whole Earth every 1–2 days: clouds, aerosols, fires, snow, vegetation."
+        },
+        {
+          "name": "ASTER",
+          "desc": "High-resolution (15–90 m) visible and thermal imager; its shortwave-IR channels are unavailable."
+        },
+        {
+          "name": "MISR",
+          "desc": "Nine cameras at different angles measuring aerosols, cloud heights and surface texture."
+        },
+        {
+          "name": "CERES",
+          "desc": "Radiometers measuring reflected sunlight and emitted heat (Earth's energy budget)."
+        },
+        {
+          "name": "MOPITT",
+          "desc": "Measures carbon monoxide pollution in the lower atmosphere."
+        }
+      ],
+      "measures": "Terra, the EOS flagship, measures land, atmosphere, oceans and Earth's energy balance together, giving a 25+ year record of how the planet is changing and data on fires, volcanoes and other hazards.",
+      "mission_page": "https://terra.nasa.gov/",
+      "swaths": [
+        {
+          "instrument": "MODIS",
+          "width_km": 2330,
+          "nadir_gap_km": 0,
+          "source": "https://modis.gsfc.nasa.gov/about/specifications.php"
+        }
+      ],
+      "gibs_layers": [
+        "MODIS_Terra_CorrectedReflectance_TrueColor",
+        "MODIS_Terra_Aerosol_Optical_Depth_3km",
+        "MODIS_Terra_NDSI_Snow_Cover",
+        "MODIS_Terra_Cloud_Fraction_Day"
+      ],
+      "sources": [
+        "https://nssdc.gsfc.nasa.gov/nmc/spacecraft/display.action?id=1999-068A",
+        "https://science.nasa.gov/mission/terra/",
+        "https://terra.nasa.gov/about",
+        "https://terra.nasa.gov/about/terras-orbit-changes",
+        "https://terra.nasa.gov/about/terras-orbit-changes/terra-orbital-drift-information",
+        "https://modis.gsfc.nasa.gov/about/specifications.php"
+      ]
+    },
+    "27424": {
+      "mission": "Aqua (EOS PM-1)",
+      "operator": "NASA",
+      "launch_date": "2002-05-04",
+      "orbit": "LEO, sun-synchronous ~705 km as launched (1:30 p.m. crossing); free-drifting since leaving the A-Train in Jan 2022",
+      "status": "NASA still lists Aqua as active, but its May 2025 status report projected instrument shutdown on 2026-08-26 and passivation on 2026-11-04. Whether shutdown occurred could not be confirmed; MODIS Aqua layers may be historical.",
+      "instruments": [
+        {
+          "name": "MODIS",
+          "desc": "36-band imager: ocean color, aerosols, clouds, sea-surface temperature, snow and ice."
+        },
+        {
+          "name": "AIRS",
+          "desc": "Infrared sounder profiling atmospheric temperature and water vapor."
+        },
+        {
+          "name": "AMSU-A",
+          "desc": "Microwave sounder measuring temperature through clouds."
+        },
+        {
+          "name": "CERES",
+          "desc": "Radiometers measuring reflected sunlight and emitted heat (Earth's energy budget)."
+        },
+        {
+          "name": "AMSR-E",
+          "desc": "Microwave radiometer (rain, sea ice, soil moisture); off since March 2016."
+        },
+        {
+          "name": "HSB",
+          "desc": "Humidity sounder (Brazil); non-operational since a February 2003 anomaly."
+        }
+      ],
+      "measures": "Aqua (Latin for water) tracks Earth's water cycle: evaporation, water vapor, clouds, rain, sea ice, snow and ocean color, plus aerosols and the planet's energy balance, over 20+ years.",
+      "mission_page": "https://science.nasa.gov/mission/aqua/",
+      "swaths": [
+        {
+          "instrument": "MODIS",
+          "width_km": 2330,
+          "nadir_gap_km": 0,
+          "source": "https://modis.gsfc.nasa.gov/about/specifications.php"
+        }
+      ],
+      "gibs_layers": [
+        "MODIS_Aqua_L2_Chlorophyll_A",
+        "MODIS_Aqua_Aerosol_Optical_Depth_3km"
+      ],
+      "sources": [
+        "https://nssdc.gsfc.nasa.gov/nmc/spacecraft/display.action?id=2002-022A",
+        "https://science.nasa.gov/mission/aqua/",
+        "https://science.nasa.gov/mission/aqua/about-aqua-spacecraft-and-instruments/",
+        "https://assets.science.nasa.gov/content/dam/science/missions/aqua/AquaStatus_May2025.pdf",
+        "https://modis.gsfc.nasa.gov/about/specifications.php"
+      ]
+    },
+    "37849": {
+      "mission": "Suomi NPP (Suomi National Polar-orbiting Partnership)",
+      "operator": "NOAA/NASA",
+      "launch_date": "2011-10-28",
+      "orbit": "LEO, sun-synchronous ~833 km, 1:25 p.m. ascending node",
+      "status": "Operational; NOAA lists it as the tertiary afternoon (PM) satellite behind NOAA-21 and NOAA-20. CrIS shows red (down).",
+      "instruments": [
+        {
+          "name": "VIIRS",
+          "desc": "Visible/infrared imager: clouds, fires, snow, ocean color, aerosols and night lights."
+        },
+        {
+          "name": "ATMS",
+          "desc": "Microwave sounder that sees through clouds to profile atmospheric temperature and moisture."
+        },
+        {
+          "name": "CrIS",
+          "desc": "Infrared sounder with thousands of channels for 3D temperature and humidity profiles."
+        },
+        {
+          "name": "OMPS",
+          "desc": "Ozone mapper and profiler tracking the ozone layer, volcanic SO2 and stratospheric aerosols."
+        },
+        {
+          "name": "CERES",
+          "desc": "Radiometer measuring sunlight reflected and heat emitted by Earth (the energy budget)."
+        }
+      ],
+      "measures": "Bridges NASA's EOS era and NOAA's JPSS weather satellites, observing clouds, oceans, vegetation, ice and the atmosphere for weather forecasts and long-term climate records, including night-time light imagery.",
+      "mission_page": "https://science.nasa.gov/mission/suomi-npp/",
+      "swaths": [
+        {
+          "instrument": "VIIRS",
+          "width_km": 3000,
+          "nadir_gap_km": 0,
+          "source": "https://ladsweb.modaps.eosdis.nasa.gov/missions-and-measurements/viirs/"
+        }
+      ],
+      "gibs_layers": [
+        "VIIRS_SNPP_CorrectedReflectance_TrueColor",
+        "VIIRS_SNPP_Thermal_Anomalies_375m_All",
+        "VIIRS_SNPP_DayNightBand_At_Sensor_Radiance",
+        "VIIRS_SNPP_AOD_Dark_Target_Land_Ocean"
+      ],
+      "sources": [
+        "https://science.nasa.gov/mission/suomi-npp/",
+        "https://www.ospo.noaa.gov/operations/jpss/status.html",
+        "https://www.nesdis.noaa.gov/our-satellites/currently-flying/joint-polar-satellite-system",
+        "https://www.nesdis.noaa.gov/our-satellites/currently-flying/joint-polar-satellite-system/jpss-satellite-and-instruments",
+        "https://ladsweb.modaps.eosdis.nasa.gov/missions-and-measurements/viirs/"
+      ]
+    },
+    "43013": {
+      "mission": "NOAA-20 (JPSS-1)",
+      "operator": "NOAA/NASA",
+      "launch_date": "2017-11-18",
+      "orbit": "LEO, sun-synchronous ~833 km, 1:25 p.m. ascending node",
+      "status": "Operational; NOAA lists it as the secondary afternoon (PM) satellite.",
+      "instruments": [
+        {
+          "name": "VIIRS",
+          "desc": "Visible/infrared imager: clouds, fires, snow, ocean color, aerosols and night lights."
+        },
+        {
+          "name": "ATMS",
+          "desc": "Microwave sounder that sees through clouds to profile atmospheric temperature and moisture."
+        },
+        {
+          "name": "CrIS",
+          "desc": "Infrared sounder with thousands of channels for 3D temperature and humidity profiles."
+        },
+        {
+          "name": "OMPS",
+          "desc": "Ozone mapper and profiler tracking the ozone layer, volcanic SO2 and stratospheric aerosols."
+        },
+        {
+          "name": "CERES",
+          "desc": "Radiometer measuring sunlight reflected and heat emitted by Earth (the energy budget)."
+        }
+      ],
+      "measures": "A NOAA polar weather satellite circling pole to pole 14 times a day. Its temperature and moisture soundings feed forecast models, and its imagery tracks storms, fires, snow, ice and ocean color.",
+      "mission_page": "https://www.nesdis.noaa.gov/our-satellites/currently-flying/joint-polar-satellite-system",
+      "swaths": [
+        {
+          "instrument": "VIIRS",
+          "width_km": 3000,
+          "nadir_gap_km": 0,
+          "source": "https://ladsweb.modaps.eosdis.nasa.gov/missions-and-measurements/viirs/"
+        }
+      ],
+      "gibs_layers": [
+        "VIIRS_NOAA20_CorrectedReflectance_TrueColor",
+        "VIIRS_NOAA20_Thermal_Anomalies_375m_All"
+      ],
+      "sources": [
+        "https://www.ospo.noaa.gov/operations/jpss/status.html",
+        "https://www.nesdis.noaa.gov/our-satellites/currently-flying/joint-polar-satellite-system",
+        "https://www.nesdis.noaa.gov/our-satellites/currently-flying/joint-polar-satellite-system/jpss-satellite-and-instruments",
+        "https://ladsweb.modaps.eosdis.nasa.gov/missions-and-measurements/viirs/"
+      ]
+    },
+    "54234": {
+      "mission": "NOAA-21 (JPSS-2)",
+      "operator": "NOAA/NASA",
+      "launch_date": "2022-11-10",
+      "orbit": "LEO, sun-synchronous (~833 km JPSS orbit), 1:25 p.m. ascending node",
+      "status": "Operational; NOAA lists it as the primary afternoon (PM) polar satellite.",
+      "instruments": [
+        {
+          "name": "VIIRS",
+          "desc": "Visible/infrared imager: clouds, fires, snow, ocean color, aerosols and night lights."
+        },
+        {
+          "name": "ATMS",
+          "desc": "Microwave sounder that sees through clouds to profile atmospheric temperature and moisture."
+        },
+        {
+          "name": "CrIS",
+          "desc": "Infrared sounder with thousands of channels for 3D temperature and humidity profiles."
+        },
+        {
+          "name": "OMPS",
+          "desc": "Ozone mapper and profiler tracking the ozone layer, volcanic SO2 and stratospheric aerosols."
+        }
+      ],
+      "measures": "NOAA's newest polar weather satellite: global temperature and moisture soundings for forecasts, plus imagery of storms, fires, floods, snow and ice, and ozone monitoring.",
+      "mission_page": "https://www.nesdis.noaa.gov/our-satellites/currently-flying/joint-polar-satellite-system",
+      "swaths": [
+        {
+          "instrument": "VIIRS",
+          "width_km": 3000,
+          "nadir_gap_km": 0,
+          "source": "https://ladsweb.modaps.eosdis.nasa.gov/missions-and-measurements/viirs/"
+        }
+      ],
+      "gibs_layers": [
+        "VIIRS_NOAA21_CorrectedReflectance_TrueColor",
+        "VIIRS_NOAA21_Thermal_Anomalies_375m_All"
+      ],
+      "sources": [
+        "https://www.ospo.noaa.gov/operations/jpss/status.html",
+        "https://www.nesdis.noaa.gov/our-satellites/currently-flying/joint-polar-satellite-system",
+        "https://www.nesdis.noaa.gov/our-satellites/currently-flying/joint-polar-satellite-system/jpss-satellite-and-instruments",
+        "https://www.eoportal.org/satellite-missions/jpss-2",
+        "https://ladsweb.modaps.eosdis.nasa.gov/missions-and-measurements/viirs/"
+      ]
+    },
+    "39084": {
+      "mission": "Landsat 8",
+      "operator": "NASA/USGS",
+      "launch_date": "2013-02-11",
+      "orbit": "LEO, sun-synchronous ~705 km, 10:12 a.m. equator crossing, 16-day repeat (8-day offset from Landsat 9)",
+      "instruments": [
+        {
+          "name": "OLI",
+          "desc": "Operational Land Imager: 30 m visible/near-IR/shortwave-IR imagery (15 m panchromatic)."
+        },
+        {
+          "name": "TIRS",
+          "desc": "Thermal Infrared Sensor: 100 m land-surface temperature imagery."
+        }
+      ],
+      "measures": "Images Earth's land at 30 m detail, continuing a record that began in 1972, to track farms, forests, cities, water and disasters over decades.",
+      "mission_page": "https://www.usgs.gov/landsat-missions/landsat-8",
+      "swaths": [
+        {
+          "instrument": "OLI/TIRS",
+          "width_km": 185,
+          "nadir_gap_km": 0,
+          "source": "https://www.usgs.gov/landsat-missions/landsat-8"
+        }
+      ],
+      "gibs_layers": [
+        "HLS_L30_Nadir_BRDF_Adjusted_Reflectance"
+      ],
+      "sources": [
+        "https://nssdc.gsfc.nasa.gov/nmc/spacecraft/display.action?id=2013-008A",
+        "https://www.usgs.gov/landsat-missions/landsat-8",
+        "https://science.nasa.gov/mission/landsat-8/"
+      ]
+    },
+    "49260": {
+      "mission": "Landsat 9",
+      "operator": "NASA/USGS",
+      "launch_date": "2021-09-27",
+      "orbit": "LEO, sun-synchronous ~705 km, 10:12 a.m. equator crossing, 16-day repeat (8-day offset from Landsat 8)",
+      "instruments": [
+        {
+          "name": "OLI-2",
+          "desc": "Operational Land Imager 2: 30 m visible/near-IR/shortwave-IR imagery, 14-bit data."
+        },
+        {
+          "name": "TIRS-2",
+          "desc": "Thermal Infrared Sensor 2: 100 m land-surface temperature imagery."
+        }
+      ],
+      "measures": "Extends the 50+ year Landsat record of Earth's land. Paired with Landsat 8 it revisits each place every 8 days, aiding deforestation, water-quality and crop monitoring.",
+      "mission_page": "https://www.usgs.gov/landsat-missions/landsat-9",
+      "swaths": [
+        {
+          "instrument": "OLI-2/TIRS-2",
+          "width_km": 185,
+          "nadir_gap_km": 0,
+          "source": "https://science.nasa.gov/mission/landsat-9/"
+        }
+      ],
+      "gibs_layers": [
+        "HLS_L30_Nadir_BRDF_Adjusted_Reflectance"
+      ],
+      "sources": [
+        "https://nssdc.gsfc.nasa.gov/nmc/spacecraft/display.action?id=2021-088A",
+        "https://www.usgs.gov/landsat-missions/landsat-9",
+        "https://science.nasa.gov/mission/landsat-9/"
+      ]
+    },
+    "39574": {
+      "mission": "GPM Core Observatory (Global Precipitation Measurement)",
+      "operator": "NASA/JAXA",
+      "launch_date": "2014-02-27",
+      "orbit": "LEO, non-sun-synchronous, 65° inclination, ~408 km (397–419 km)",
+      "instruments": [
+        {
+          "name": "DPR",
+          "desc": "Dual-frequency (Ku/Ka) precipitation radar giving 3D views of rain and snow inside storms."
+        },
+        {
+          "name": "GMI",
+          "desc": "13-channel microwave imager measuring rain and snowfall across a wide swath."
+        }
+      ],
+      "measures": "Measures rain and snow worldwide and calibrates an international satellite constellation that maps rain and snow worldwide every three hours, supporting flood, hurricane and drought forecasting.",
+      "mission_page": "https://gpm.nasa.gov/missions/GPM",
+      "swaths": [
+        {
+          "instrument": "DPR (Ku and Ka)",
+          "width_km": 245,
+          "nadir_gap_km": 0,
+          "source": "https://gpm.nasa.gov/missions/GPM/DPR"
+        },
+        {
+          "instrument": "GMI",
+          "width_km": 885,
+          "nadir_gap_km": 0,
+          "source": "https://gpm.nasa.gov/missions/GPM/GMI"
+        }
+      ],
+      "gibs_layers": [
+        "IMERG_Precipitation_Rate",
+        "IMERG_Precipitation_Rate_30min"
+      ],
+      "gibs_note": "IMERG merges the whole GPM constellation; the GPM Core Observatory is its calibration reference.",
+      "sources": [
+        "https://science.nasa.gov/mission/gpm/",
+        "https://gpm.nasa.gov/missions/GPM/core-observatory",
+        "https://gpm.nasa.gov/missions/GPM/DPR",
+        "https://gpm.nasa.gov/missions/GPM/GMI"
+      ]
+    },
+    "40376": {
+      "mission": "SMAP (Soil Moisture Active Passive)",
+      "operator": "NASA",
+      "launch_date": "2015-01-31",
+      "orbit": "LEO, sun-synchronous dawn/dusk ~685 km (6 p.m. ascending node), 8-day repeat",
+      "status": "Radiometer operating; the radar stopped transmitting on 2015-07-07.",
+      "instruments": [
+        {
+          "name": "L-band radiometer",
+          "desc": "Senses natural microwave emission from soil to map moisture and freeze/thaw."
+        },
+        {
+          "name": "L-band radar",
+          "desc": "Higher-resolution active sensor; failed in July 2015."
+        },
+        {
+          "name": "6 m rotating antenna",
+          "desc": "Spinning mesh reflector (14.6 rpm) that sweeps a wide conical swath."
+        }
+      ],
+      "measures": "Maps how wet the top few centimeters of soil are and whether ground is frozen or thawed every 2–3 days, improving flood, drought, crop and weather forecasts.",
+      "mission_page": "https://smap.jpl.nasa.gov/",
+      "swaths": [
+        {
+          "instrument": "Radiometer",
+          "width_km": 1000,
+          "nadir_gap_km": 0,
+          "source": "https://www.eoportal.org/satellite-missions/smap"
+        }
+      ],
+      "gibs_layers": [
+        "SMAP_L4_Analyzed_Surface_Soil_Moisture",
+        "SMAP_L3_Passive_Enhanced_Day_Soil_Moisture"
+      ],
+      "sources": [
+        "https://nssdc.gsfc.nasa.gov/nmc/spacecraft/display.action?id=2015-003A",
+        "https://science.nasa.gov/mission/smap/",
+        "https://smap.jpl.nasa.gov/",
+        "https://www.eoportal.org/satellite-missions/smap"
+      ]
+    },
+    "43613": {
+      "mission": "ICESat-2 (Ice, Cloud, and land Elevation Satellite-2)",
+      "operator": "NASA",
+      "launch_date": "2018-09-15",
+      "orbit": "LEO ~500 km (310 mi), 92° inclination, 91-day repeat",
+      "instruments": [
+        {
+          "name": "ATLAS",
+          "desc": "Green (532 nm) photon-counting laser altimeter: 10,000 pulses/s split into six beams in three pairs."
+        }
+      ],
+      "measures": "Measures the height of ice sheets, glaciers, sea ice, forests and water with a laser, showing how fast Earth's ice is thinning and how much it adds to sea-level rise.",
+      "mission_page": "https://icesat-2.gsfc.nasa.gov/",
+      "swaths": [],
+      "gibs_layers": [],
+      "sources": [
+        "https://nssdc.gsfc.nasa.gov/nmc/spacecraft/display.action?id=2018-070A",
+        "https://science.nasa.gov/mission/icesat-2/",
+        "https://icesat-2.gsfc.nasa.gov/how-it-works",
+        "https://icesat-2.gsfc.nasa.gov/space-lasers",
+        "https://icesat-2.gsfc.nasa.gov/launch-info",
+        "https://nsidc.org/data/icesat-2"
+      ]
+    },
+    "43476": {
+      "mission": "GRACE-FO (Gravity Recovery and Climate Experiment Follow-On) — satellite 1",
+      "operator": "NASA/GFZ",
+      "launch_date": "2018-05-22",
+      "orbit": "LEO, near-polar (~89° incl.) ~490 km; twin satellites ~220 km apart in the same orbit",
+      "instruments": [
+        {
+          "name": "KBR (MWI)",
+          "desc": "K/Ka-band microwave link measuring tiny changes in the distance between the two satellites."
+        },
+        {
+          "name": "LRI",
+          "desc": "Laser Ranging Interferometer: lower-noise laser measurement of the inter-satellite distance."
+        },
+        {
+          "name": "ACC",
+          "desc": "Accelerometer separating non-gravitational forces (air drag, sunlight) from gravity."
+        },
+        {
+          "name": "TriG GNSS / SCA",
+          "desc": "GNSS receiver and star cameras for precise position and orientation."
+        }
+      ],
+      "measures": "Tracks month-to-month changes in Earth's gravity caused by moving water and ice: shrinking ice sheets, groundwater depletion, drought and sea-level change. The two satellites act as one instrument.",
+      "mission_page": "https://gracefo.jpl.nasa.gov/",
+      "swaths": [],
+      "gibs_layers": [],
+      "sources": [
+        "https://science.nasa.gov/mission/grace-fo/",
+        "https://gracefo.jpl.nasa.gov/",
+        "https://www.eoportal.org/satellite-missions/grace-fo"
+      ]
+    },
+    "43477": {
+      "mission": "GRACE-FO (Gravity Recovery and Climate Experiment Follow-On) — satellite 2",
+      "operator": "NASA/GFZ",
+      "launch_date": "2018-05-22",
+      "orbit": "LEO, near-polar (~89° incl.) ~490 km; twin satellites ~220 km apart in the same orbit",
+      "instruments": [
+        {
+          "name": "KBR (MWI)",
+          "desc": "K/Ka-band microwave link measuring tiny changes in the distance between the two satellites."
+        },
+        {
+          "name": "LRI",
+          "desc": "Laser Ranging Interferometer: lower-noise laser measurement of the inter-satellite distance."
+        },
+        {
+          "name": "ACC",
+          "desc": "Accelerometer separating non-gravitational forces (air drag, sunlight) from gravity."
+        },
+        {
+          "name": "TriG GNSS / SCA",
+          "desc": "GNSS receiver and star cameras for precise position and orientation."
+        }
+      ],
+      "measures": "Tracks month-to-month changes in Earth's gravity caused by moving water and ice: shrinking ice sheets, groundwater depletion, drought and sea-level change. The two satellites act as one instrument.",
+      "mission_page": "https://gracefo.jpl.nasa.gov/",
+      "swaths": [],
+      "gibs_layers": [],
+      "sources": [
+        "https://science.nasa.gov/mission/grace-fo/",
+        "https://gracefo.jpl.nasa.gov/",
+        "https://www.eoportal.org/satellite-missions/grace-fo"
+      ]
+    },
+    "54754": {
+      "mission": "SWOT (Surface Water and Ocean Topography)",
+      "operator": "NASA/CNES",
+      "launch_date": "2022-12-16",
+      "orbit": "LEO, non-sun-synchronous ~891 km, 78° inclination, ~21-day repeat (science orbit since July 2023)",
+      "instruments": [
+        {
+          "name": "KaRIn",
+          "desc": "Ka-band radar interferometer on a 10 m boom mapping water heights in two wide swaths."
+        },
+        {
+          "name": "Nadir altimeter",
+          "desc": "Conventional radar altimeter measuring sea level straight below (fills the gap)."
+        },
+        {
+          "name": "Microwave radiometer",
+          "desc": "Measures water vapor to correct the radar height measurements."
+        },
+        {
+          "name": "DORIS / GPS / LRA",
+          "desc": "Precise orbit determination so heights can be measured to centimeters."
+        }
+      ],
+      "measures": "First global survey of Earth's surface water: heights of rivers, lakes and reservoirs and fine-scale ocean surface topography, showing how water bodies change and how eddies move heat.",
+      "mission_page": "https://swot.jpl.nasa.gov/",
+      "swaths": [
+        {
+          "instrument": "KaRIn",
+          "width_km": 120,
+          "nadir_gap_km": 20,
+          "source": "https://www.eoportal.org/satellite-missions/swot",
+          "note": "Two 50 km swaths either side of the ground track (eoPortal); 120 km total (CNES, eoPortal). The 20 km gap is 120 − 2×50."
+        }
+      ],
+      "gibs_layers": [],
+      "sources": [
+        "https://science.nasa.gov/mission/swot/",
+        "https://swot.cnes.fr/en/",
+        "https://www.jpl.nasa.gov/press-kits/swot/quick-facts/",
+        "https://www.eoportal.org/satellite-missions/swot",
+        "https://www.earthdata.nasa.gov/data/platforms/space-based-platforms/swot"
+      ]
+    },
+    "40059": {
+      "mission": "OCO-2 (Orbiting Carbon Observatory-2)",
+      "operator": "NASA",
+      "launch_date": "2014-07-02",
+      "orbit": "LEO, sun-synchronous near-polar ~705 km, ~1:30 p.m. ascending node, 16-day repeat",
+      "instruments": [
+        {
+          "name": "Three-band grating spectrometer",
+          "desc": "Reads sunlight absorbed by CO2 and O2 to measure column CO2 and plant fluorescence."
+        }
+      ],
+      "measures": "Measures carbon dioxide in the air column with high precision to find where CO2 is emitted and absorbed by forests, oceans and soils, and tracks plant photosynthesis via fluorescence.",
+      "mission_page": "https://ocov2.jpl.nasa.gov/",
+      "swaths": [
+        {
+          "instrument": "OCO-2 spectrometer",
+          "width_km": 10,
+          "nadir_gap_km": 0,
+          "source": "https://www.eoportal.org/satellite-missions/oco-2",
+          "note": "8 footprints across ~10 km (up to 10.6 km at nadir); effective cross-track width varies with slit orientation."
+        }
+      ],
+      "gibs_layers": [],
+      "sources": [
+        "https://nssdc.gsfc.nasa.gov/nmc/spacecraft/display.action?id=2014-035A",
+        "https://science.nasa.gov/mission/oco-2/",
+        "https://ocov2.jpl.nasa.gov/mission/",
+        "https://ocov2.jpl.nasa.gov/mission/quick-facts/",
+        "https://ocov2.jpl.nasa.gov/observatory/instrument/",
+        "https://oco.caltech.edu/observatories/oco-2-observatory",
+        "https://www.eoportal.org/satellite-missions/oco-2"
+      ]
+    },
+    "58928": {
+      "mission": "PACE (Plankton, Aerosol, Cloud, ocean Ecosystem)",
+      "operator": "NASA",
+      "launch_date": "2024-02-08",
+      "orbit": "LEO, polar ~676 km, 98° inclination",
+      "instruments": [
+        {
+          "name": "OCI",
+          "desc": "Ocean Color Instrument: hyperspectral UV-to-shortwave-IR scanner revealing plankton types."
+        },
+        {
+          "name": "SPEXone",
+          "desc": "Narrow-swath multi-angle polarimeter characterizing aerosol particles."
+        },
+        {
+          "name": "HARP2",
+          "desc": "Wide-swath hyper-angular polarimeter studying clouds and aerosols."
+        }
+      ],
+      "measures": "Measures ocean color to identify phytoplankton communities, and studies aerosols and clouds, to monitor ocean health, air quality and climate.",
+      "mission_page": "https://pace.gsfc.nasa.gov/",
+      "swaths": [
+        {
+          "instrument": "OCI",
+          "width_km": 2700,
+          "nadir_gap_km": 0,
+          "source": "https://pace.oceansciences.org/oci.htm"
+        }
+      ],
+      "gibs_layers": [
+        "OCI_PACE_Chlorophyll_a",
+        "OCI_PACE_True_Color"
+      ],
+      "sources": [
+        "https://nssdc.gsfc.nasa.gov/nmc/spacecraft/display.action?id=2024-025A",
+        "https://science.nasa.gov/mission/pace/",
+        "https://pace.gsfc.nasa.gov/",
+        "https://pace.oceansciences.org/mission.htm",
+        "https://pace.oceansciences.org/oci.htm"
+      ]
+    },
+    "65053": {
+      "mission": "NISAR (NASA-ISRO Synthetic Aperture Radar)",
+      "operator": "NASA/ISRO",
+      "launch_date": "2025-07-30",
+      "orbit": "LEO, sun-synchronous dawn/dusk ~747 km, 98.4° inclination, 12-day exact repeat",
+      "instruments": [
+        {
+          "name": "L-SAR",
+          "desc": "NASA 24 cm L-band radar that sees through clouds and vegetation; 12 m mesh reflector."
+        },
+        {
+          "name": "S-SAR",
+          "desc": "ISRO 9.4 cm S-band radar sharing the reflector, sensitive to crops and surface detail."
+        }
+      ],
+      "measures": "Radar maps of land and ice every 12 days, day or night through clouds, measuring ground motion from earthquakes and volcanoes, glacier flow, crop and forest change, and flooding.",
+      "mission_page": "https://science.nasa.gov/mission/nisar/",
+      "swaths": [
+        {
+          "instrument": "L-SAR",
+          "width_km": 242,
+          "nadir_gap_km": 0,
+          "source": "https://science.nasa.gov/mission/nisar/about-the-satellite/",
+          "note": "Side-looking radar (left/south look): the swath is offset to one side of the ground track, not centered."
+        }
+      ],
+      "gibs_layers": [],
+      "sources": [
+        "https://science.nasa.gov/mission/nisar/",
+        "https://science.nasa.gov/mission/nisar/mission-overview/",
+        "https://science.nasa.gov/mission/nisar/about-the-satellite/"
+      ]
+    },
+    "41866": {
+      "mission": "GOES-16 (GOES-R)",
+      "operator": "NOAA/NASA",
+      "launch_date": "2016-11-19",
+      "orbit": "GEO, on-orbit storage at 104.7°W (as of June 2025)",
+      "status": "Not operational: replaced as GOES-East by GOES-19 on 2025-04-07; now the on-orbit backup for GOES-18/19.",
+      "instruments": [
+        {
+          "name": "ABI",
+          "desc": "Advanced Baseline Imager: 16-band visible/IR imager scanning the full disk every few minutes."
+        },
+        {
+          "name": "GLM",
+          "desc": "Geostationary Lightning Mapper: maps lightning flashes continuously, day and night."
+        },
+        {
+          "name": "SUVI",
+          "desc": "Solar Ultraviolet Imager: watches the Sun's corona for flares and eruptions."
+        },
+        {
+          "name": "EXIS",
+          "desc": "Measures solar extreme-ultraviolet and X-ray output (flare detection)."
+        },
+        {
+          "name": "SEISS",
+          "desc": "Measures charged particles around the satellite (space-weather radiation)."
+        },
+        {
+          "name": "MAG",
+          "desc": "Magnetometer measuring Earth's magnetic field at geostationary orbit."
+        }
+      ],
+      "measures": "Former GOES-East weather satellite (2017–2025). It is kept in storage as a backup, ready to replace GOES-18 or GOES-19 if one fails.",
+      "mission_page": "https://www.nesdis.noaa.gov/our-satellites/currently-flying/geostationary-satellites",
+      "swaths": [],
+      "gibs_layers": [],
+      "sources": [
+        "https://www.ospo.noaa.gov/operations/goes/status.html",
+        "https://www.nesdis.noaa.gov/our-satellites/currently-flying/geostationary-satellites"
+      ]
+    },
+    "51850": {
+      "mission": "GOES-18 (GOES-T) — operational GOES-West",
+      "operator": "NOAA/NASA",
+      "launch_date": "2022-03-01",
+      "orbit": "GEO 137.0°W (GOES-West since 2023-01-04)",
+      "status": "Operational as GOES-West.",
+      "instruments": [
+        {
+          "name": "ABI",
+          "desc": "Advanced Baseline Imager: 16-band visible/IR imager scanning the full disk every few minutes."
+        },
+        {
+          "name": "GLM",
+          "desc": "Geostationary Lightning Mapper: maps lightning flashes continuously, day and night."
+        },
+        {
+          "name": "SUVI",
+          "desc": "Solar Ultraviolet Imager: watches the Sun's corona for flares and eruptions."
+        },
+        {
+          "name": "EXIS",
+          "desc": "Measures solar extreme-ultraviolet and X-ray output (flare detection)."
+        },
+        {
+          "name": "SEISS",
+          "desc": "Measures charged particles around the satellite (space-weather radiation)."
+        },
+        {
+          "name": "MAG",
+          "desc": "Magnetometer measuring Earth's magnetic field at geostationary orbit."
+        }
+      ],
+      "measures": "Watches the Pacific, western North America and Hawaii from a fixed spot, imaging storms, wildfire smoke, fog and lightning every few minutes, and monitoring space weather.",
+      "mission_page": "https://www.nesdis.noaa.gov/our-satellites/currently-flying/geostationary-satellites",
+      "swaths": [],
+      "gibs_layers": [
+        "GOES-West_ABI_GeoColor",
+        "GOES-West_ABI_Band13_Clean_Infrared"
+      ],
+      "sources": [
+        "https://www.ospo.noaa.gov/operations/goes/status.html",
+        "https://www.nesdis.noaa.gov/our-satellites/currently-flying/geostationary-satellites"
+      ]
+    },
+    "60133": {
+      "mission": "GOES-19 (GOES-U) — operational GOES-East",
+      "operator": "NOAA/NASA",
+      "launch_date": "2024-06-25",
+      "orbit": "GEO 75.2°W (GOES-East since 2025-04-07)",
+      "status": "Operational as GOES-East.",
+      "instruments": [
+        {
+          "name": "ABI",
+          "desc": "Advanced Baseline Imager: 16-band visible/IR imager scanning the full disk every few minutes."
+        },
+        {
+          "name": "GLM",
+          "desc": "Geostationary Lightning Mapper: maps lightning flashes continuously, day and night."
+        },
+        {
+          "name": "SUVI",
+          "desc": "Solar Ultraviolet Imager: watches the Sun's corona for flares and eruptions."
+        },
+        {
+          "name": "EXIS",
+          "desc": "Measures solar extreme-ultraviolet and X-ray output (flare detection)."
+        },
+        {
+          "name": "SEISS",
+          "desc": "Measures charged particles around the satellite (space-weather radiation)."
+        },
+        {
+          "name": "MAG",
+          "desc": "Magnetometer measuring Earth's magnetic field at geostationary orbit."
+        },
+        {
+          "name": "CCOR",
+          "desc": "Compact Coronagraph: images solar eruptions (CMEs) heading toward Earth."
+        }
+      ],
+      "measures": "Watches the Americas and Atlantic from a fixed spot, imaging hurricanes, severe storms, fires and lightning every few minutes; its coronagraph adds early warning of solar storms.",
+      "mission_page": "https://www.nesdis.noaa.gov/our-satellites/currently-flying/geostationary-satellites",
+      "swaths": [],
+      "gibs_layers": [
+        "GOES-East_ABI_GeoColor",
+        "GOES-East_ABI_Band13_Clean_Infrared"
+      ],
+      "sources": [
+        "https://www.ospo.noaa.gov/operations/goes/status.html",
+        "https://www.nesdis.noaa.gov/our-satellites/currently-flying/geostationary-satellites"
+      ]
+    },
+    "56174": {
+      "mission": "Intelsat 40e (IS-40e) — host of NASA TEMPO",
+      "operator": "Intelsat (hosts NASA TEMPO)",
+      "launch_date": "2023-04-07",
+      "orbit": "GEO ~91°W (planned TEMPO position per eoPortal)",
+      "instruments": [
+        {
+          "name": "TEMPO",
+          "desc": "NASA UV-visible spectrometer measuring air pollution over North America every daylight hour."
+        }
+      ],
+      "measures": "A commercial communications satellite carrying NASA's TEMPO, which maps ozone, nitrogen dioxide, aerosols and other pollutants hourly across North America at neighborhood scale.",
+      "mission_page": "https://science.nasa.gov/mission/tempo/",
+      "swaths": [],
+      "gibs_layers": [
+        "TEMPO_L3_NO2_Vertical_Column_Troposphere"
+      ],
+      "sources": [
+        "https://science.nasa.gov/mission/tempo/",
+        "https://tempo.si.edu/overview.html",
+        "https://www.eoportal.org/satellite-missions/tempo"
+      ]
+    }
+  }
+}

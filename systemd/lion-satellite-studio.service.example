@@ -1,0 +1,24 @@
+# Example user unit. Copy to ~/.config/systemd/user/lion-satellite-studio.service, replace REPO with the
+# absolute path of your checkout, then:
+#   systemctl --user daemon-reload && systemctl --user enable --now lion-satellite-studio
+# Settings come from REPO/satellite.env (read by server.py itself); keys from the keys file (LSS_KEYS_FILE).
+[Unit]
+Description=Lion Satellite Studio - 3D globe of open satellite data
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=REPO
+ExecStart=/usr/bin/python3 REPO/server.py
+Environment=PYTHONUNBUFFERED=1
+Restart=on-failure
+RestartSec=10
+# a background service: low priority, bounded memory (the radar worker runs as its own niced process)
+Nice=10
+CPUWeight=20
+MemoryMax=1600M
+UMask=0077
+
+[Install]
+WantedBy=default.target
