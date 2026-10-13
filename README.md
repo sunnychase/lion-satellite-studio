@@ -29,7 +29,8 @@ night lights, NISAR radar footprints, SWOT river heights, and your own Sentinel-
   <a href="#contributing">Contributing</a>
 </p>
 
-<p align="center"><img src="docs/images/hero.webp" width="100%" alt="Lion Satellite Studio: the globe with all ~16,700 active satellites from CelesTrak, today's earthquakes and the Explore tours"></p>
+<p align="center"><a href="docs/media/lion-satellite-studio.mp4"><img src="docs/media/preview.webp" width="100%" alt="Lion Satellite Studio: orbiting the International Space Station with its NASA 3D model, live orbit and speed"></a><br>
+<sub>▶ <a href="docs/media/lion-satellite-studio.mp4"><b>Watch the 81-second tour</b></a> (MP4, 1080p, silent): the fleet, all ~16,700 satellites, the ISS, GOES-East, night lights, Landsat, Everest in 3D, NISAR, SWOT and Sentinel-1 radar. Every frame is the app itself, rendered offline from its own data.</sub></p>
 
 Lion Satellite Studio puts the open Earth-observation record on one globe you can spin. Satellite positions are computed in
 your browser from CelesTrak's orbital elements; imagery comes straight from NASA GIBS; a small Python server fetches,
@@ -87,6 +88,8 @@ the server does, once, and every viewer shares the cached answer. Keys stay on t
 Imagery tiles (GIBS, EOX, Planetary Computer's Sentinel-1 tiles through the server) and terrain load as the camera moves.
 
 ## Features
+
+<p align="center"><img src="docs/images/hero.webp" width="100%" alt="Lion Satellite Studio: the globe with all ~16,700 active satellites from CelesTrak, today's earthquakes and the Explore tours"></p>
 
 | | |
 |---|---|
@@ -304,6 +307,7 @@ data/                     Natural Earth 10 m land and minor islands (land mask f
 scripts/                  check.sh (the CI checks), precompress.py, setup_radar.sh, gen_satellites_table.py
 systemd/                  example user unit
 docs/images/              logo and screenshots
+docs/media/               the 81 s product video (MP4) and the README preview loop
 satellite.env.example     every setting, with comments
 ```
 

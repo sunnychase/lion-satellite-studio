@@ -59,6 +59,13 @@ Sentinel-1, ESA WorldCover), EOX (EOxCloudless 2025, CC BY-NC-SA 4.0, non-commer
 keys, aisstream.io and Global Fishing Watch (CC BY-NC 4.0, non-commercial). Their terms and required attributions are listed
 in the README's [Data sources and licences](README.md#data-sources-and-licences) and in the page's About box.
 
+## Screenshots and video
+
+`docs/images/*.webp` and `docs/media/` show the app with live data from the providers above, with their credits in the
+attribution line at the bottom of each frame. Some frames include EOxCloudless 2025 imagery (CC BY-NC-SA 4.0) and Copernicus
+Sentinel data; those images and the video may therefore be reused only on the providers' terms (for the EOX parts:
+non-commercial, share-alike, with attribution). The Lion logo in `docs/images/logo.png` belongs to this project.
+
 ## Layout
 
 - **README and repository-template layout** adapted from [morluto/rea](https://github.com/morluto/rea) (MIT): the structure

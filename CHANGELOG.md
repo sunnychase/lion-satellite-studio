@@ -22,5 +22,7 @@ Updates to Lion Satellite Studio, newest first. The project has no version numbe
   `LSS_CONTACT`, `LSS_DISABLE_AIS`); a generic User-Agent `LionSatelliteStudio/1.0 (+repository URL)` with an optional contact.
 - Created by Sunny Chase (https://github.com/sunnychase) in collaboration with Claude (Anthropic); credited in LICENSE, the
   code headers, the README, the page's About box and a small link at the bottom right of the page.
+- **Product video** (`docs/media/lion-satellite-studio.mp4`, 81 s, 1080p30, H.264, silent) and an 8 s README preview loop
+  (`docs/media/preview.webp`), rendered offline frame by frame from the app in headless Chromium.
 - Repository: README with the satellites table generated from the app's data (`scripts/gen_satellites_table.py`), screenshots,
   NOTICE, CONTRIBUTING, SECURITY, AGENTS, issue forms, pull-request template, CI running `scripts/check.sh`.
