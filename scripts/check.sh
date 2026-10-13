@@ -48,6 +48,8 @@ echo "== hygiene: home paths, private addresses, token-shaped strings, keys file
 { git grep -I -n -E 'hf_[A-Za-z0-9]{20,}|gh[pousr]_[A-Za-z0-9]{30,}|sk-[A-Za-z0-9]{32,}|AKIA[0-9A-Z]{16}' -- .
   git grep -I -n -E '/home/[a-z]|/Users/[A-Za-z]|192\.168\.[0-9]|\b10\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\b|\b172\.(1[6-9]|2[0-9]|3[01])\.[0-9]{1,3}\.[0-9]{1,3}\b' -- . ':!static/vendor'
   git ls-files | grep -E '(^|/)(keys\.env.*|satellite\.env|.*\.sqlite|.*\.db)$' | sed 's/^/tracked: /'
+  # e-mail addresses in first-party files (the project's noreply/contact forms excepted)
+  git grep -I -n -E '[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}' -- . ':!static/vendor' | grep -v -E 'noreply|users\.noreply\.github\.com|example\.(com|org)' 
 } | cut -c1-200 > "$tmp/hits"
 hits=$(cat "$tmp/hits")
 if [ -n "$hits" ]; then echo "$hits"; echo "FAIL: use \$HOME, ~ or a satellite.env setting instead; never commit addresses, tokens or keys files"; fail=1; else echo "clean"; fi

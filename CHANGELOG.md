@@ -2,6 +2,13 @@
 
 Updates to Lion Satellite Studio, newest first. The project has no version numbers; each entry is dated.
 
+## 2026-10-13 (review follow-ups)
+
+- Requests that carry credentials (Global Fishing Watch) no longer follow HTTP redirects, so the token can never be re-sent to another host.
+- CelesTrak errors back off for 2 hours, the same as successful fetches (CelesTrak blocks on request count).
+- Server tracebacks go through the same key scrub as every other log line.
+- `scripts/check.sh` also fails on e-mail addresses in first-party files.
+
 ## 2026-10-13 — First public release
 
 - **The globe**: CesiumJS 1.146 without Cesium ion; the NASA/NOAA Earth fleet (21 satellites) or any CelesTrak group up to all

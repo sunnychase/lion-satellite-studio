@@ -186,14 +186,25 @@ class Upstream(Exception):
 UPSTREAM_HITS = {}
 
 
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None          # → HTTPError with the 3xx code, reported as an upstream error
+
+
+_DEFAULT = urllib.request.build_opener()
+_NO_REDIRECT = urllib.request.build_opener(_NoRedirect)
+
+
 def http_get(url, headers=None, timeout=60, max_bytes=120 * 2**20, data=None, method=None, source="?"):
     h = {"User-Agent": UA, "Accept-Encoding": "gzip"}
     if headers:
         h.update(headers)
     req = urllib.request.Request(url, headers=h, data=data, method=method)
     UPSTREAM_HITS[source] = UPSTREAM_HITS.get(source, 0) + 1
+    # a request that carries credentials never follows a redirect (urllib would re-send the Authorization header to the new host)
+    opener = _NO_REDIRECT if any(k.lower() == "authorization" for k in h) else _DEFAULT
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as r:
+        with opener.open(req, timeout=timeout) as r:
             body = r.read(max_bytes + 1)
             status = r.status
             rh = r.headers
@@ -345,7 +356,7 @@ def make_celestrak_fetch(group):
 
 
 SATS = {g: Cached("celestrak:" + g, os.path.join(CACHE, "celestrak", g + ".json.gz"), CELESTRAK_TTL,
-                  make_celestrak_fetch(g), err_backoff=1800, source="celestrak")
+                  make_celestrak_fetch(g), err_backoff=7200, source="celestrak")   # 2 h on errors too: CelesTrak blocks on request count
         for g in SAT_GROUPS}
 
 # migrate a pre-seeded plain JSON (fetched once during setup) into the gz cache
@@ -1643,7 +1654,11 @@ class Handler(BaseHTTPRequestHandler):
             pass
         except Exception as e:
             log("handler error", self.path[:120], redact(e))
-            traceback.print_exc()
+            tb = traceback.format_exc()
+            for v in KEYS.values():               # the full traceback goes through the same key scrub as every other sink
+                if v:
+                    tb = tb.replace(v, "[redacted]")
+            sys.stderr.write(tb)
             try:
                 self.send_err(500, "internal error")
             except Exception:
