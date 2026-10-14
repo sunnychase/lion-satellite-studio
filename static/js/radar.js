@@ -461,7 +461,7 @@ async function renderResult(r) {
   if (r.has_overlay) {
     try {
       const prov = await C.SingleTileImageryProvider.fromUrl(`/api/s1/file?key=${r.key}&name=overlay.png`, { rectangle: C.Rectangle.fromDegrees(b[0], b[1], b[2], b[3]) });
-      R.resultLayer = App.viewer.imageryLayers.add(new C.ImageryLayer(prov, { alpha: 0.95 }));
+      R.resultLayer = new C.ImageryLayer(prov, { alpha: 0.95 }); App.viewer.imageryLayers.add(R.resultLayer);
       raiseRefLayers();
     } catch (e) { toast('Result overlay could not be loaded'); }
   }

@@ -252,7 +252,7 @@ async function drapeBrowse(g) {
     const layer = new C.ImageryLayer(prov, { alpha: 0.92 });
     layer.colorToAlpha = C.Color.BLACK; layer.colorToAlphaThreshold = 0.02;
     if (N.sel !== g.gn) return;
-    N.browse = v.imageryLayers.add(layer);
+    v.imageryLayers.add(layer); N.browse = layer;
     requestRender();
   } catch (e) { toast('Browse image could not be loaded'); }
 }

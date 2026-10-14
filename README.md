@@ -80,7 +80,7 @@ folder; see [Configuration](#configuration)). To run it in the background, adapt
         ├── ASF (NISAR) .............. granule footprints → local SQLite    hourly poll + slow backfill
         ├── PO.DAAC Hydrocron (SWOT) . river and lake heights, 44 places    12 h, one request at a time
         ├── NASA Earthdata GIS ....... SWOT reaches near a point (keyless)  1 h
-        ├── Planetary Computer ....... Sentinel-1/-2, Landsat, HLS: search + tiles   1 h, tiles in memory
+        ├── Planetary Computer ....... Sentinel-1/-2, Landsat, HLS, NAIP: search + tiles   1 h, tiles in memory
         │       └── analysis.py ...... optional radar worker (numpy/rasterio), one job at a time, niced
         ├── aisstream.io (your key) .. live AIS ships over one WebSocket    in memory, last 30 min
         └── Global Fishing Watch (your token)  SAR vessel detections      6 h
@@ -88,7 +88,7 @@ folder; see [Configuration](#configuration)). To run it in the background, adapt
 
 The page never talks to CelesTrak, ASF, Hydrocron, Planetary Computer's search, aisstream or Global Fishing Watch directly:
 the server does, once, and every viewer shares the cached answer. Keys stay on the server and are never sent to the browser.
-Imagery tiles (GIBS, EOX, Planetary Computer's Sentinel-1 tiles through the server) and terrain load as the camera moves.
+Imagery tiles (GIBS, EOX, Planetary Computer's Sentinel-1, optical and NAIP tiles through the server) and terrain load as the camera moves.
 
 ## Features
 
@@ -100,6 +100,7 @@ Imagery tiles (GIBS, EOX, Planetary Computer's Sentinel-1 tiles through the serv
 | <img src="docs/images/landsat8-swath.webp" width="100%" alt="Landsat 8 with its sensor cone and swath on the ground"> | **What it sees.** Close up, a satellite shows its instrument's field of view and the swath it sweeps on the ground (for example Landsat's 185 km), and **Show its data** switches on that satellite's own imagery layers. |
 | <img src="docs/images/goes-east.webp" width="100%" alt="GOES-East GeoColor over the Americas"> | **Near real time.** GOES-East, GOES-West and Himawari full-disk imagery from NASA GIBS, every 10 minutes, with a slider over the last day of frames; GPM IMERG precipitation every 30 minutes; today's fires from VIIRS and MODIS. |
 | <img src="docs/images/night-lights.webp" width="100%" alt="City lights on the night side"> | **Day, night and science layers.** True colour from MODIS, VIIRS and PACE; night lights on the dark side only; soil moisture (SMAP), aerosols, chlorophyll (PACE), NO₂ (TEMPO), sea-surface temperature, sea ice, snow, and 30 m Harmonized Landsat Sentinel-2. |
+| <img src="docs/images/golden-gate-naip.webp" width="100%" alt="NAIP aerial photograph of the Golden Gate Bridge in 3D"> | **Aerial photos up close (US).** Below about 3 km over the United States, the newest USDA NAIP aerial photograph under the view (about 0.6 m per pixel) loads on top of the globe, with its state and date in the status bar: NAIP is flown every 2–3 years per state, so the photo is often 1–3 years old. It is freed again when you zoom out; outside the US the status bar says *no aerial here*. Switch it off under *Imagery & terrain*. |
 | <img src="docs/images/nisar-footprints.webp" width="100%" alt="NISAR radar footprints over North America"> | **NISAR footprints.** Every NISAR granule ASF has published, as footprints coloured by product (GCOV, GUNW, GSLC …), newest first. Tap one for its track, frame, polarisation and size, drape the browse image, or open it in ASF Vertex. |
 | <img src="docs/images/swot-river.webp" width="100%" alt="SWOT water-surface elevation of the Mississippi at New Orleans"> | **SWOT rivers and lakes.** Water-surface elevation, width and slope of 44 curated rivers and lakes over the last 12 months, from PO.DAAC Hydrocron, with the product version (CRID) of every value. |
 | <img src="docs/images/radar-water-oroville.webp" width="100%" alt="Sentinel-1 water analysis of Lake Oroville"> | **Your own radar analysis.** Draw a box (up to 2,500 km²) and the optional worker reads only that window of Sentinel-1 RTC from Planetary Computer: **open water** (Lee filter + Otsu threshold), **change** between two passes, **bright targets at sea** (CFAR ship detection) or a **12-month backscatter time series**. Results come with the method, the threshold and a GeoJSON download. |
@@ -124,7 +125,7 @@ Type an address or a place (*1 Main St, Springfield* or *Golden Gate Bridge*), c
 | **Next passes (24 h)** | Rise, set and maximum elevation of each low-orbit fleet satellite, and whether the point falls **inside the instrument swath** at closest approach (cross-track distance vs the swath, nadir gaps included), day or night. This is the "which satellite will have data here" answer. |
 | **Daily imagery at this pixel** | One NASA GIBS tile per layer at ~1 km per pixel, read in your browser: MODIS Terra/Aqua and VIIRS (Suomi NPP, NOAA-20, NOAA-21) true colour and the active science layer, for a date you pick. |
 | **Sentinel-1 radar** | The newest 15 Sentinel-1 RTC scenes whose footprint contains the point (Planetary Computer STAC point search); tap one to show it. |
-| **Optical scenes** | The newest Sentinel-2 L2A, Landsat Collection 2 L2 and HLS (L30, S30) scenes over the point with their cloud cover; tap to show the scene with Planetary Computer's own "Natural color" render. |
+| **Optical scenes** | The newest Sentinel-2 L2A, Landsat Collection 2 L2 and HLS (L30, S30) scenes over the point with their cloud cover, and in the US the NAIP aerial photographs (USDA, ~0.6 m) with state and date; tap to show the scene with Planetary Computer's own "Natural color" render. |
 | **NISAR** | Every NISAR granule whose footprint contains the point (ASF `intersectsWith=POINT`), by product, with the browse image on tap. |
 | **SWOT** | River reaches within 10 km from NASA's SWOT RiverSP feature service (keyless), with the last valid pass and water-surface elevation, plus the nearest curated river or lake. |
 | **Nearby** | Earthquakes M2.5+ within 300 km in the last 7 days (USGS) and, with an aisstream.io key, AIS ships within 50 km. |
@@ -166,6 +167,12 @@ frame is the app's own, and the full credits are under each picture.
 <sub>EOxCloudless 2025 by EOX IT Services (contains modified Copernicus Sentinel data 2025), CC BY-NC-SA 4.0. Terrain: Mapzen / AWS Terrain Tiles. Orbits: CelesTrak.</sub></td>
 </tr>
 </table>
+
+<p><img src="docs/images/golden-gate-naip.webp" width="74%" alt="NAIP aerial photograph of the Golden Gate Bridge in 3D"><br>
+<b>USDA NAIP aerial photograph, acquired 2022-05-18</b> (item ca_m_3712213_nw_10_060_20220518, 0.6 m, natural colour), loaded by the app
+on its own at 900 m above the strait, looking north-north-west to the Marin Headlands. The straight edge on the right is the end of this
+photo (one quarter-quadrangle, about 6 × 7 km); beyond it is the EOxCloudless backdrop.<br>
+<sub>USDA NAIP via Microsoft Planetary Computer (public domain). Terrain: Mapzen / AWS Terrain Tiles. Backdrop: EOxCloudless 2025 by EOX IT Services, CC BY-NC-SA 4.0.</sub></p>
 
 <p><img src="docs/images/golden-gate-phone.webp" width="24%" alt="Phone: Point report on the Golden Gate Bridge"><br>
 <sub>The Point report on a phone (390×844). Background: EOxCloudless 2025, CC BY-NC-SA 4.0.</sub></p>
@@ -267,6 +274,7 @@ carry the attributions. The code's MIT licence does not cover the data.
 | [ESA WorldCover 2021 v200](https://esa-worldcover.org) | land mask for ship detection | "© ESA WorldCover project 2021 / Contains modified Copernicus Sentinel data (2021) processed by ESA WorldCover consortium", **CC BY 4.0**. |
 | [EOxCloudless 2025](https://cloudless.eox.at) (EOX IT Services) | hi-res backdrop when zoomed in | "EOxCloudless https://cloudless.eox.at by EOX IT Services GmbH (Contains modified Copernicus Sentinel data 2025)", **CC BY-NC-SA 4.0: non-commercial use only.** For commercial use, switch off *Hi-res backdrop* under *Imagery & terrain* (or remove it from `static/js/imagery.js`). |
 | [Mapzen / AWS Terrain Tiles](https://registry.opendata.aws/terrain-tiles/) | 3D terrain | Open data from many sources (SRTM, GMTED2010, 3DEP, ETOPO1, EU-DEM, ArcticDEM and national agencies); the full attribution list is in the page's About box. |
+| [NAIP](https://planetarycomputer.microsoft.com/dataset/naip) (USDA National Agriculture Imagery Program) via Planetary Computer | aerial photos when zoomed in over the US; Point report | USDA Farm Production and Conservation Business Center; public domain. Credited as "USDA NAIP via Microsoft Planetary Computer"; access under the [Planetary Computer terms of use](https://planetarycomputer.microsoft.com/terms). |
 | [OpenStreetMap Nominatim](https://nominatim.org) | address search | Data © OpenStreetMap contributors, [ODbL](https://www.openstreetmap.org/copyright). Used within the [Nominatim usage policy](https://operations.osmfoundation.org/policies/nominatim/): a search is sent only when you press Enter (no autocomplete), at most one request per second for the whole server, with an identifying User-Agent, and every answer is cached for 30 days. Queries go to the OpenStreetMap Foundation; don't search for private addresses you would not share. Switch it off or point it elsewhere with `LSS_GEOCODER` / `LSS_GEOCODER_URL`. |
 | [Natural Earth](https://www.naturalearthdata.com) | borders, gazetteer, land mask | Public domain. Made with Natural Earth. |
 | [aisstream.io](https://aisstream.io) (your key) | live AIS ships | Free API key. aisstream.io's documentation: "Direct browser connections are not permitted; proxy only the information your clients need from your own server." This server holds the single WebSocket and the key, and the page only sees the server's answers. No terms-of-use page was found; treat the data as for personal, non-commercial viewing. |
@@ -290,6 +298,9 @@ Honest notes from building and testing it:
   result says so instead of guessing. A missing AIS message is not proof of a "dark" vessel.
 - **Planetary Computer access is anonymous.** It uses short-lived SAS tokens with no subscription key. Microsoft may rate-limit
   anonymous use or require an account later; if tokens are refused, the analysis reports it and stops.
+- **NAIP aerial photos are not current.** Each state is flown every 2–3 years in the growing season, so the photo is often 1–3
+  years old (its date is in the status bar); it covers the US only (lower 48, Hawaii, Puerto Rico), and one photo is shown at a time,
+  so its edge can show at the side of the view.
 - **NISAR and SWOT products are provisional** and are reprocessed; values can change.
 - **Satellite positions** come from SGP4 and elements up to a day or two old: good to a few kilometres for most low-Earth
   orbiters, not for precision work. Some 3D models are stand-ins (Landsat 9 uses Landsat 8's; GRACE for GRACE-FO; a generic

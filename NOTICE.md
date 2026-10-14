@@ -55,7 +55,7 @@ project. Models were converted to GLB and trimmed (details in `static/models/man
 ## Data shown at run time (not included)
 
 The app fetches data from CelesTrak, NASA GIBS/EOSDIS, USGS, ASF DAAC, PO.DAAC, Microsoft Planetary Computer (Copernicus
-Sentinel-1 and Sentinel-2, USGS Landsat Collection 2, NASA HLS, ESA WorldCover), NASA Earthdata GIS (SWOT RiverSP
+Sentinel-1 and Sentinel-2, USGS Landsat Collection 2, NASA HLS, USDA NAIP aerial photography (public domain), ESA WorldCover), NASA Earthdata GIS (SWOT RiverSP
 reaches), EOX (EOxCloudless 2025, CC BY-NC-SA 4.0, non-commercial), AWS Terrain Tiles, and, with your own
 keys, aisstream.io and Global Fishing Watch (CC BY-NC 4.0, non-commercial); address search uses OpenStreetMap Nominatim (data © OpenStreetMap
 contributors, ODbL). Their terms and required attributions are listed

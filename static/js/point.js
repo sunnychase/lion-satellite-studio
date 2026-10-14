@@ -8,6 +8,7 @@ import * as SAT from './sats.js';
 import * as IM from './imagery.js';
 import * as D from './data.js';
 import * as RD from './radar.js';
+import { inUS, label as naipLabel, showItem as showNaip } from './naip.js';
 import { ecfToLookAngles, degreesToRadians, radiansToDegrees } from '../vendor/satellite/transforms.js';
 
 const C = window.Cesium;
@@ -18,6 +19,7 @@ const OPT = {
   'sentinel-2-l2a': { title: 'Sentinel-2 L2A', minZ: 9, credit: 'Contains modified Copernicus Sentinel data; Sentinel-2 L2A via Microsoft Planetary Computer', short: 'S2' },
   'landsat-c2-l2': { title: 'Landsat Collection 2 L2', minZ: 8, credit: 'Landsat imagery courtesy of the U.S. Geological Survey, via Microsoft Planetary Computer', short: 'Landsat' },
   'hls2-l30': { title: 'HLS Landsat (L30)', minZ: 8, credit: 'HLS L30: NASA LP DAAC (Landsat, USGS) via Microsoft Planetary Computer', short: 'HLS L30' },
+  'naip': { title: 'NAIP aerial (USDA, ~0.6 m)', minZ: 12, credit: 'Aerial: USDA NAIP via Microsoft Planetary Computer', short: 'NAIP', usOnly: true },
   'hls2-s30': { title: 'HLS Sentinel-2 (S30)', minZ: 8, credit: 'HLS S30: NASA LP DAAC; contains modified Copernicus Sentinel data, via Microsoft Planetary Computer', short: 'HLS S30' },
 };
 const GIBS_WMTS = 'https://gibs.earthdata.nasa.gov/wmts/epsg4326/best';
@@ -354,7 +356,7 @@ async function s1Section(body) {
 // 3c. optical scenes (Sentinel-2 L2A, Landsat C2 L2, HLS) over the point
 async function optSection(body) {
   const c = P.cur;
-  const parts = Object.entries(OPT).map(([coll, o]) => { const b = el('div', { class: 'pt-list' }); skeleton(b, 1); return { coll, o, b }; });
+  const parts = Object.entries(OPT).filter(([coll, o]) => !(o.usOnly && !inUS(c.lat, c.lon))).map(([coll, o]) => { const b = el('div', { class: 'pt-list' }); skeleton(b, 1); return { coll, o, b }; });
   body.replaceChildren(...parts.flatMap(p => [el('div', { class: 'pt-h2' }, p.o.title), p.b]), note('Cloud cover is the scene’s own estimate. Tap a scene to show it (Planetary Computer “Natural color” render); tap again to hide.'));
   P.report.sections.optical = {};
   for (const p of parts) {
@@ -363,12 +365,13 @@ async function optSection(body) {
       P.report.sections.optical[p.coll] = d.scenes.map(s => ({ id: s.id, datetime: s.dt, platform: s.platform, cloud_cover: s.cloud }));
       if (!d.scenes.length) { p.b.replaceChildren(note(`none since ${d.from.slice(0, 10)}`)); continue; }
       p.b.replaceChildren(...d.scenes.slice(0, 8).map(s => row([el('span', { class: 'dot', style: { background: (s.cloud ?? 100) < 20 ? 'var(--ok)' : (s.cloud ?? 100) < 60 ? GOLD : '#5a5f68' } }),
-        el('span', { class: 'mono' }, s.dt.slice(0, 10)), el('span', {}, `${(s.platform || '').replace('sentinel-', 'S').replace('landsat-', 'L')}`),
-        el('span', { class: 'mono muted' }, s.cloud === null || s.cloud === undefined ? 'cloud ?' : `${Math.round(s.cloud)}% cloud`)], () => showOptical(p.coll, s), s.id)));
+        el('span', { class: 'mono' }, s.dt.slice(0, 10)), el('span', {}, p.coll === 'naip' ? `${(s.state || '').toUpperCase()} · ${s.gsd || 0.6} m` : `${(s.platform || '').replace('sentinel-', 'S').replace('landsat-', 'L')}`),
+        el('span', { class: 'mono muted' }, p.coll === 'naip' ? 'aerial' : s.cloud === null || s.cloud === undefined ? 'cloud ?' : `${Math.round(s.cloud)}% cloud`)], () => showOptical(p.coll, s), s.id)));
     } catch (e) { p.b.replaceChildren(note(`unavailable (${e.message})`)); P.report.sections.optical[p.coll] = { error: e.message }; }
   }
 }
 function showOptical(coll, s) {
+  if (coll === 'naip') { App.data.naip.last = null; showNaip(s); App.lastUserInput = 0; flyPoint(2200); toast(`${naipLabel(s)} (aerial photographs are often 1–3 years old)`, 5000); return; }
   if (P.overlayInfo && P.overlayInfo.id === s.id) { clearOptical(); toast('Scene hidden'); return; }
   clearOptical();
   const o = OPT[coll], b = s.bbox;
@@ -377,7 +380,7 @@ function showOptical(coll, s) {
     minimumLevel: o.minZ, maximumLevel: 14, rectangle: b && b.length === 4 ? C.Rectangle.fromDegrees(b[0], b[1], b[2], b[3]) : undefined, credit: new C.Credit(o.credit),
   });
   prov.errorEvent.addEventListener(() => { });
-  P.overlay = App.viewer.imageryLayers.add(new C.ImageryLayer(prov));
+  P.overlay = App.viewer.imageryLayers.addImageryProvider(prov);   // add() returns nothing; this returns the layer
   P.overlayInfo = { id: s.id, coll, dt: s.dt, credit: o.credit };
   IM.raiseRefLayers && IM.raiseRefLayers();
   App.events.dispatchEvent(new Event('layers'));
@@ -409,7 +412,7 @@ async function showNisar(g) {
     try {
       const prov = await C.SingleTileImageryProvider.fromUrl(g.browse, { rectangle: C.Rectangle.fromDegrees(Math.min(...lons), Math.min(...lats), Math.max(...lons), Math.max(...lats)), credit: 'NISAR browse: NASA/JPL-Caltech, ISRO; ASF DAAC' });
       const layer = new C.ImageryLayer(prov, { alpha: 0.92 }); layer.colorToAlpha = C.Color.BLACK; layer.colorToAlphaThreshold = 0.02;
-      if (P.extra && P.extra.ents === ents) { P.extra.layer = v.imageryLayers.add(layer); P.extra.credit = 'NISAR browse: NASA/JPL-Caltech, ISRO via ASF DAAC'; App.events.dispatchEvent(new Event('layers')); }
+      if (P.extra && P.extra.ents === ents) { v.imageryLayers.add(layer); P.extra.layer = layer; P.extra.credit = 'NISAR browse: NASA/JPL-Caltech, ISRO via ASF DAAC'; App.events.dispatchEvent(new Event('layers')); }
     } catch (e) { toast('Browse image could not be loaded'); }
   }
   const pts = g.geom && g.geom[0] ? C.Cartesian3.fromDegreesArray(g.geom[0].flat()) : null;

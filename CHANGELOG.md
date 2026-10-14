@@ -2,6 +2,21 @@
 
 Updates to Lion Satellite Studio, newest first. The project has no version numbers; each entry is dated.
 
+## 2026-10-13 — NAIP aerial photos up close (US)
+
+- Below about 3 km over the United States (lower 48, Hawaii, Puerto Rico), the newest USDA NAIP aerial photograph under the
+  centre of the view (~0.6 m) loads on top of the globe; the status bar shows *NAIP aerial · state · date* and the attribution
+  line "USDA NAIP via Microsoft Planetary Computer". It is freed when the camera goes above about 4.5 km; outside the US the
+  status bar says *no aerial here*. One photo at a time; on/off under *Imagery & terrain* (on by default).
+- Server: `/api/naip?lat=&lon=` (newest item from Planetary Computer STAC, cached 1 h, US only, no upstream request elsewhere,
+  one new lookup per client every 3 s); NAIP tiles (zoom 12–18) through the existing tile endpoint with Planetary Computer's
+  NAIP render (`assets=image`, bands 1, 2, 3).
+- Point report: a *NAIP aerial* list in the optical section (US points), with state, resolution and date; tapping one shows it.
+- Fix: a Sentinel-2 / Landsat / HLS scene shown from the Point report, a NISAR browse image, and a radar analysis overlay could not
+  be removed again (Cesium's `imageryLayers.add()` returns nothing, so the app kept `undefined` instead of the layer); *tap again
+  to hide* and closing the card now remove them and free their tiles.
+- README: a NAIP picture of the Golden Gate Bridge (acquired 2022-05-18), a data-source row and a caveat on the photo's age.
+
 ## 2026-10-13 — Performance, a panel that stays painted, address search
 
 **Performance** (measured in GPU Chromium on a DGX Spark, phone emulation 390×844 with a 4× CPU slowdown, against the running

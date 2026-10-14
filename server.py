@@ -16,6 +16,7 @@ Upstreams (all keyless unless noted):
   PO.DAAC Hydrocron      cache 12 h per whitelisted feature, one request at a time
   aisstream.io (KEY)     one websocket, only if AISSTREAM_API_KEY is present in keys.env
   Global Fishing Watch (TOKEN) SAR detections, cache 6 h, only if GFW_API_TOKEN is present
+  NAIP aerial (/api/naip): newest USDA NAIP item under the view centre (PC STAC), US only, cache 1 h
   OpenStreetMap Nominatim (address search): on Enter only, <= 1 request/s for the whole server, cached 30 days
   Point lookup (/api/point/*): PC STAC point search (S1/S2/Landsat/HLS), ASF NISAR intersectsWith,
                          NASA Earthdata GIS SWOT reaches; cache 1 h; one new point per client every 3 s
@@ -1591,18 +1592,29 @@ POINT_COLLECTIONS = {   # collection -> (look-back days, newest N, item-id patte
     "landsat-c2-l2": (180, 12, re.compile(r"^L[COTE]0[4-9]_L2S[PR]_\d{6}_\d{8}(?:_\d{8})?_02_(T1|T2|RT)$")),
     "hls2-l30": (120, 12, re.compile(r"^HLS\.L30\.T\d{2}[A-Z]{3}\.\d{7}T\d{6}\.v2\.0$")),
     "hls2-s30": (120, 12, re.compile(r"^HLS\.S30\.T\d{2}[A-Z]{3}\.\d{7}T\d{6}\.v2\.0$")),
+    "naip": (8 * 365, 6, re.compile(r"^[a-z]{2}_m_\d{7}_(ne|nw|se|sw)_\d{2}_[0-9.]{2,4}_\d{8}(_\d{8})?$")),
 }
 # Planetary Computer's own "Natural color" render options (api/data/v1/mosaic/info renderOptions), per collection
 OPT_RENDER = {
     "sentinel-2-l2a": "assets=B04&assets=B03&assets=B02&nodata=0&color_formula=" + urllib.parse.quote("Gamma RGB 3.2 Saturation 0.8 Sigmoidal RGB 25 0.35"),
     "landsat-c2-l2": "assets=red&assets=green&assets=blue&nodata=0&color_formula=" + urllib.parse.quote("gamma RGB 2.7, saturation 1.5, sigmoidal RGB 15 0.55"),
     "hls2-l30": "assets=B04&assets=B03&assets=B02&nodata=0&color_formula=" + urllib.parse.quote("Gamma RGB 3.7 Saturation 1.5 Sigmoidal RGB 15 0.35"),
+    "naip": "assets=image&asset_bidx=" + urllib.parse.quote("image|1,2,3"),   # USDA NAIP, "Natural color"
     "hls2-s30": "assets=B04&assets=B03&assets=B02&color_formula=" + urllib.parse.quote("Gamma RGB 3.7 Saturation 1.5 Sigmoidal RGB 15 0.35"),
 }
 OPT_TILE = ("https://planetarycomputer.microsoft.com/api/data/v1/item/tiles/WebMercatorQuad/{z}/{x}/{y}@1x.png"
             "?collection={coll}&item={item}&{q}")
 SWOT_GIS = ("https://gis.earthdata.nasa.gov/portal/rest/services/C3233944997_POCLOUD/SWOT_L2_HR_RiverSP_reach_vD_BASIC/"
             "FeatureServer/1/query")
+# NAIP is flown over the US only: no upstream request elsewhere (CONUS, Hawaii, Puerto Rico)
+NAIP_US = ((-125.0, 24.0, -66.5, 49.5), (-160.5, 18.8, -154.5, 22.5), (-67.5, 17.8, -65.2, 18.6))
+OPT_Z = {"naip": (12, 18)}   # tile zoom range per collection (default 8..16)
+
+
+def in_naip_us(la, lo):
+    return any(b[0] <= lo <= b[2] and b[1] <= la <= b[3] for b in NAIP_US)
+
+
 POINT_GATE = {}
 POINT_GATE_LOCK = threading.Lock()
 POINT_SEM = threading.BoundedSemaphore(3)
@@ -1615,18 +1627,18 @@ def latlon_param(lat, lon):
     return round(la, 4), round(lo, 4)
 
 
-def point_gate(client, pt):
+def point_gate(client, pt, kind="point"):
     """A client may start a lookup for a NEW point at most once every 3 s (other datasets for the same point are free)."""
     now = time.time()
     with POINT_GATE_LOCK:
         if len(POINT_GATE) > 5000:
             for k in [k for k, v in POINT_GATE.items() if now - v[1] > 60]:
                 POINT_GATE.pop(k, None)
-        last = POINT_GATE.get(client)
+        last = POINT_GATE.get((client, kind))
         if last and last[0] != pt and now - last[1] < 3.0:
             return max(1, math.ceil(3.0 - (now - last[1])))
         if not last or last[0] != pt:
-            POINT_GATE[client] = (pt, now)
+            POINT_GATE[(client, kind)] = (pt, now)
     return 0
 
 
@@ -1658,7 +1670,7 @@ def point_stac(coll, la, lo):
             p = f.get("properties", {})
             out.append({"id": f.get("id"), "dt": p.get("datetime"), "platform": p.get("platform"),
                         "cloud": p.get("eo:cloud_cover"), "dir": p.get("sat:orbit_state"), "rel": p.get("sat:relative_orbit"),
-                        "abs": p.get("sat:absolute_orbit"), "bbox": [round(x, 4) for x in f.get("bbox", [])]})
+                        "abs": p.get("sat:absolute_orbit"), "state": p.get("naip:state"), "gsd": p.get("gsd"), "bbox": [round(x, 4) for x in f.get("bbox", [])]})
         return json.dumps({"collection": coll, "lat": la, "lon": lo, "from": iso(start), "to": iso(end),
                            "fetched": iso(time.time()), "scenes": out}, separators=(",", ":")).encode()
     return point_cached("stac", key, fetch)
@@ -2089,6 +2101,20 @@ class Handler(BaseHTTPRequestHandler):
                     return self.send_err(400, "q must be 2..200 characters")
                 gz, meta = geocode_query(q)
                 return self.cached_out(gz, meta)
+            if p == "/api/naip":   # newest NAIP photo under the view centre (the detail layer); 3 dp, own per-client gate
+                try:
+                    la, lo = latlon_param(one("lat", ""), one("lon", ""))
+                except Exception:
+                    return self.send_err(400, "lat must be -90..90 and lon -180..180 (decimal degrees)")
+                la, lo = round(la, 3), round(lo, 3)
+                if not in_naip_us(la, lo):
+                    return self.send_json({"item": None, "outside": True})
+                wait = point_gate(self.client_address[0], (la, lo), "naip")
+                if wait:
+                    return self.send_err(429, "one new NAIP lookup every 3 s, please", wait)
+                gz, _ = point_stac("naip", la, lo)
+                sc = json.loads(gzip.decompress(gz)).get("scenes") or []
+                return self.send_json({"item": sc[0] if sc else None, "lat": la, "lon": lo})
             if p.startswith("/api/point/"):
                 return self.point_api(p, one)
             if p == "/api/status":
@@ -2104,7 +2130,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send_err(400, "bad collection or item")
             try:
                 z, x, y = int(one("z")), int(one("x")), int(one("y"))
-                assert 8 <= z <= 16 and 0 <= x < 2 ** z and 0 <= y < 2 ** z
+                lo_z, hi_z = OPT_Z.get(coll, (8, 16))
+                assert lo_z <= z <= hi_z and 0 <= x < 2 ** z and 0 <= y < 2 ** z
             except Exception:
                 return self.send_err(400, "z/x/y out of range")
             try:
@@ -2127,6 +2154,8 @@ class Handler(BaseHTTPRequestHandler):
         if wait:
             return self.send_err(429, "one new point every 3 s, please", wait)
         if p == "/api/point/stac":
+            if coll == "naip" and not in_naip_us(la, lo):
+                return self.send_json({"collection": coll, "lat": la, "lon": lo, "from": None, "scenes": [], "outside": True})
             gz, meta = point_stac(coll, la, lo)
         elif p == "/api/point/nisar":
             gz, meta = point_nisar(la, lo)

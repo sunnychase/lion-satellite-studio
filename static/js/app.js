@@ -6,6 +6,7 @@ import * as SAT from './sats.js';
 import * as D from './data.js';
 import * as RD from './radar.js';
 import * as PT from './point.js';
+import * as NAIP from './naip.js';
 
 const C = window.Cesium;
 C.Ion.defaultAccessToken = 'unused-no-ion'; // Cesium ion is never used: no ion imagery, terrain or geocoder.
@@ -24,7 +25,7 @@ function makeViewer() {
   const s = v.scene;
   App.viewer = v; App.scene = s;
   window.LE = App; // handy for debugging & headless checks
-  App.api = { SAT, IM, D, RD, PT };
+  App.api = { SAT, IM, D, RD, PT, NAIP };
   s.globe.baseColor = C.Color.fromCssColorString('#0a1424');
   s.globe.showGroundAtmosphere = true;
   s.globe.enableLighting = true;
@@ -508,7 +509,7 @@ function startClock() {
   upd(); setInterval(upd, 1000);
 }
 function renderChips() {
-  const order = ['sats', 'tle', 'imagery', 'goes', 'radar', 'quake', 'nisar'];
+  const order = ['sats', 'tle', 'imagery', 'naip', 'goes', 'radar', 'quake', 'nisar'];
   const box = $('#chips');
   box.replaceChildren(...order.filter(k => App.status[k] && App.status[k].level !== 'hide').map(k => { const s = App.status[k]; return el('span', { class: `chip ${s.level}`, title: s.title || '' }, el('i'), s.text); }));
 }
@@ -645,6 +646,7 @@ function attributionLine() {
   if (App.data.swot.on) parts.push('SWOT: NASA/CNES via PO.DAAC');
   if (App.data.radar && App.data.radar.on) parts.push('Contains modified Copernicus Sentinel data 2026 · Sentinel-1 RTC (Catalyst) via Microsoft Planetary Computer');
   if (PT.opticalCredit()) parts.push(PT.opticalCredit());
+  if (NAIP.credit()) parts.push(NAIP.credit());
   if (App.data.ships.on) parts.push('AIS: aisstream.io');
   if (App.data.ships.gfwOn) parts.push('Powered by Global Fishing Watch (non-commercial)');
   parts.push('Borders: Natural Earth', 'CesiumJS');
@@ -856,6 +858,7 @@ function buildAbout(status) {
   <li><b>NISAR</b> — NASA/JPL-Caltech and ISRO; data via the Alaska Satellite Facility DAAC (ASF SearchAPI). NASA data are free and open; cite “ASF DAAC 2026, contains modified NISAR data”.</li>
   <li><b>SWOT</b> — NASA/JPL and CNES; Hydrocron time series via NASA PO.DAAC.</li>
   <li><b>Sentinel-1</b> — “Contains modified Copernicus Sentinel data [2025–2026]”, used under the <a href="https://sentinel.esa.int/documents/247904/690755/Sentinel_Data_Legal_Notice" target="_blank" rel="noopener">Copernicus Sentinel data legal notice</a> (free, full and open). The radiometrically terrain corrected (RTC) γ⁰ product is processed by Catalyst and published on <b>Microsoft Planetary Computer</b> under <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>; search, tiles and data are used under the <a href="https://planetarycomputer.microsoft.com/terms" target="_blank" rel="noopener">Planetary Computer terms of use</a>. Data are read with anonymous, short-lived SAS tokens (no subscription key; PC rate-limits anonymous use; its RTC docs say an account may be required, so the analysis disables itself if tokens are refused). False-colour render adapted from Sentinel Hub custom scripts (CC BY 4.0), as documented by PC. Analyses are automatic estimates, not validated.</li>
+  <li><b>NAIP</b> aerial photography — USDA Farm Production and Conservation Business Center (NAIP), public domain; ~0.6 m, US only, flown every 2–3 years per state, so the acquisition date is shown; via Microsoft Planetary Computer.</li>
   <li><b>Address search</b> — © <b>OpenStreetMap contributors</b>, ODbL; search by Nominatim (nominatim.openstreetmap.org) through this server, only when you press Enter, cached 30 days, at most 1 request per second. Please don’t search for private addresses you would not share: queries are sent to the OpenStreetMap Foundation (see its privacy policy).</li>
   <li><b>Point report data</b> — <b>Sentinel-2 L2A</b>: “Contains modified Copernicus Sentinel data [2025–2026]” (Copernicus Sentinel data legal notice); <b>Landsat Collection 2 Level-2</b>: courtesy of the U.S. Geological Survey, public domain; <b>HLS v2.0</b> (L30/S30): NASA LP DAAC, free and open; all via Microsoft Planetary Computer (STAC point search and the tiler, under its terms of use). <b>SWOT reaches near a point</b>: SWOT_L2_HR_RiverSP reach (version D) feature service on NASA Earthdata GIS (NASA/JPL, CNES), keyless. NISAR point search: ASF SearchAPI. Pass and swath geometry are computed in your browser.</li>
   <li><b>ESA WorldCover 2021 v200</b> (ship-detection land mask, read server-side from Planetary Computer) — “© ESA WorldCover project 2021 / Contains modified Copernicus Sentinel data (2021) processed by ESA WorldCover consortium”, CC BY 4.0.</li>
@@ -949,6 +952,7 @@ async function boot() {
   D.buildShipUI(secBodies.ships, status);
   RD.buildRadarUI(secBodies.radar);
   PT.buildPointUI(secBodies.point);
+  NAIP.initNaip(secBodies.imagery);
   secBodies.about.replaceChildren(el('button', { class: 'btn', onclick: () => $('#about').classList.remove('hidden') }, 'Open credits, licences & about'), el('div', { class: 'hint' }, 'Required credits are always shown in small type at the bottom of the map; tap it for the full list.'));
   const satsP = SAT.initSats().then(() => SAT.buildUI(secBodies.sats)).catch(e => { console.error(e); toast('Satellites unavailable right now — retrying in 5 min'); setTimeout(() => SAT.refreshGroups(), 300e3); });
   SAT.buildUI(secBodies.sats);
