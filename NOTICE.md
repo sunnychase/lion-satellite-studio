@@ -72,3 +72,5 @@ non-commercial, share-alike, with attribution). The Lion logo in `docs/images/lo
 
 - **README and repository-template layout** adapted from [morluto/rea](https://github.com/morluto/rea) (MIT): the structure
   only; the wording is this project's own.
+
+Created by Sunny Chase (https://github.com/sunnychase) in collaboration with Claude (Anthropic).
