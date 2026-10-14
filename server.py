@@ -17,6 +17,7 @@ Upstreams (all keyless unless noted):
   aisstream.io (KEY)     one websocket, only if AISSTREAM_API_KEY is present in keys.env
   Global Fishing Watch (TOKEN) SAR detections, cache 6 h, only if GFW_API_TOKEN is present
   NAIP aerial (/api/naip): newest USDA NAIP item under the view centre (PC STAC), US only, cache 1 h
+  NASA FIRMS active fires: the public 24 h VIIRS CSVs (S-NPP, NOAA-20, NOAA-21), cache 45 min each, 40 MB cap
   OpenStreetMap Nominatim (address search): on Enter only, <= 1 request/s for the whole server, cached 30 days
   Point lookup (/api/point/*): PC STAC point search (S1/S2/Landsat/HLS), ASF NISAR intersectsWith,
                          NASA Earthdata GIS SWOT reaches; cache 1 h; one new point per client every 3 s
@@ -28,6 +29,8 @@ Configuration: environment variables, optionally loaded from satellite.env next 
 (see satellite.env.example). Real environment variables win over the file.
 """
 import base64
+import csv
+import io
 import datetime as dt
 import gzip
 import hashlib
@@ -51,6 +54,7 @@ import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
 import zlib
+from concurrent.futures import ThreadPoolExecutor
 from email.utils import formatdate, parsedate_to_datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
@@ -379,17 +383,24 @@ for _g in SAT_GROUPS:
         except Exception:
             pass
 
-FLEET_CACHE = {"src_mtime": None, "gz": None}
+# Extra satellites for the Point report's "Next passes" (with the fleet), by NORAD id (verified against CelesTrak
+# 'active' on 2026-10-14). Served as the derived group "passes": cut from the cached 'active' group, no extra requests.
+PASS_EXTRA = {
+    39634: "SENTINEL-1A", 62261: "SENTINEL-1C", 66315: "SENTINEL-1D", 40697: "SENTINEL-2A", 42063: "SENTINEL-2B",
+    60989: "SENTINEL-2C", 41335: "SENTINEL-3A", 43437: "SENTINEL-3B", 48274: "CSS (TIANHE)", 20580: "HST",
+}
+DERIVED = {"fleet": set(FLEET), "passes": set(FLEET) | set(PASS_EXTRA)}
+DERIVED_CACHE = {}
 
 
-def fleet_group():
+def derived_group(name):
     arr, meta = SATS["active"].raw_json()
-    if FLEET_CACHE["src_mtime"] != meta["fetched"]:
-        keep = [s for s in arr if s.get("NORAD_CAT_ID") in FLEET]
-        FLEET_CACHE["gz"] = gzip.compress(json.dumps(keep, separators=(",", ":")).encode(), 6)
-        FLEET_CACHE["src_mtime"] = meta["fetched"]
-        FLEET_CACHE["n"] = len(keep)
-    return FLEET_CACHE["gz"], dict(meta, derived_from="active")
+    c = DERIVED_CACHE.get(name)
+    if not c or c["src_mtime"] != meta["fetched"]:
+        keep = [s for s in arr if s.get("NORAD_CAT_ID") in DERIVED[name]]
+        c = DERIVED_CACHE[name] = {"gz": gzip.compress(json.dumps(keep, separators=(",", ":")).encode(), 6),
+                                   "src_mtime": meta["fetched"], "n": len(keep)}
+    return c["gz"], dict(meta, derived_from="active")
 
 
 # --------------------------------------------------------------------------- USGS
@@ -1359,6 +1370,97 @@ if not KEYS.get("GFW_API_TOKEN"):
 if not KEYS.get("AISSTREAM_API_KEY"):
     set_status("aisstream", "missing key", note="add AISSTREAM_API_KEY to the keys file and restart")
 
+# --------------------------------------------------------------------------- NASA FIRMS active fires (keyless)
+# The public 24-hour global CSVs of the VIIRS 375 m active-fire product (no MAP_KEY needed). Each file is a fixed URL,
+# cached 45 min (FIRMS refreshes them after each pass), capped at 40 MB, and reduced to compact rows; /api/fires merges
+# whichever satellites are available (fail soft: one missing file only drops that satellite).
+FIRMS_BASE = "https://firms.modaps.eosdis.nasa.gov/data/active_fire/"
+FIRMS_FILES = {   # id -> (path under FIRMS_BASE, satellite)
+    "snpp": ("suomi-npp-viirs-c2/csv/SUOMI_VIIRS_C2_Global_24h.csv", "Suomi NPP"),
+    "noaa20": ("noaa-20-viirs-c2/csv/J1_VIIRS_C2_Global_24h.csv", "NOAA-20"),
+    "noaa21": ("noaa-21-viirs-c2/csv/J2_VIIRS_C2_Global_24h.csv", "NOAA-21"),
+}
+FIRMS_TTL = 45 * 60
+FIRMS_MAX_BYTES = 40 * 2**20
+FIRMS_MAX_ROWS = 300000
+FIRMS_LIMITS = (20000, 60000, 150000)   # the only row counts a browser may ask for
+FIRMS_CONF = {"l": 0, "low": 0, "n": 1, "nominal": 1, "h": 2, "high": 2}
+
+
+def make_firms_fetch(path):
+    def fetch():
+        _, body, _ = http_get(FIRMS_BASE + path, timeout=120, max_bytes=FIRMS_MAX_BYTES, source="firms")
+        rd = csv.DictReader(io.StringIO(body.decode("utf-8", "replace")))
+        need = {"latitude", "longitude", "acq_date", "acq_time", "frp", "confidence"}
+        if not rd.fieldnames or not need <= set(rd.fieldnames):
+            raise Upstream("FIRMS: unexpected CSV header")
+        rows = []
+        for r in rd:
+            try:
+                la, lo = float(r["latitude"]), float(r["longitude"])
+                d, hm = r["acq_date"], r["acq_time"].zfill(4)
+                t = dt.datetime(int(d[0:4]), int(d[5:7]), int(d[8:10]), int(hm[:2]), int(hm[2:]), tzinfo=dt.timezone.utc)
+                if not (-90 <= la <= 90 and -180 <= lo <= 180):
+                    continue
+                rows.append([round(la, 4), round(lo, 4), int(t.timestamp() // 60), round(float(r["frp"] or 0), 1),
+                             FIRMS_CONF.get((r["confidence"] or "").strip().lower(), -1), 1 if r.get("daynight") == "D" else 0,
+                             round(float(r.get("scan") or 0), 2), round(float(r.get("track") or 0), 2),
+                             round(float(r.get("bright_ti4") or 0), 1)])
+            except (ValueError, KeyError, TypeError):
+                continue
+            if len(rows) >= FIRMS_MAX_ROWS:
+                break
+        if not rows:
+            raise Upstream("FIRMS: no rows")
+        return json.dumps({"rows": rows}, separators=(",", ":")).encode()
+    return fetch
+
+
+FIRMS = {k: Cached("firms:" + k, os.path.join(CACHE, "firms", k + ".json.gz"), FIRMS_TTL, make_firms_fetch(p),
+                   err_backoff=900, source="firms") for k, (p, _) in FIRMS_FILES.items()}
+FIRMS_OUT = {"key": None, "gz": {}}
+FIRMS_LOCK = threading.Lock()
+
+
+def firms_merged(limit):
+    """Rows of every available satellite, newest first: [lat, lon, minute, frp, conf, day, sat, scan, track, bt4]."""
+    with ThreadPoolExecutor(len(FIRMS)) as ex:     # a cold cache fetches the files in parallel
+        got = dict(zip(FIRMS, ex.map(lambda k: _firms_one(k), FIRMS)))
+    ok = {k: v for k, v in got.items() if v[0] is not None}
+    if not ok:
+        err = "; ".join("%s: %s" % (k, v[2]) for k, v in got.items())
+        raise Unavailable("FIRMS unavailable (%s)" % err, 900)
+    key = tuple((k, ok[k][1]["fetched"]) for k in sorted(ok))
+    with FIRMS_LOCK:
+        if FIRMS_OUT["key"] != key:      # new data: build every allowed size at once, then let the parsed rows go
+            rows, ids = [], list(FIRMS)
+            for k in ok:
+                for r in json.loads(gzip.decompress(ok[k][0]))["rows"]:
+                    r.insert(6, ids.index(k))
+                    rows.append(r)
+            rows.sort(key=lambda r: -r[2])
+            src = {k: {"satellite": FIRMS_FILES[k][1], "fetched": v[1]["fetched"] if v[0] is not None else None,
+                       "error": v[2]} for k, v in got.items()}
+            out = {}
+            for n in FIRMS_LIMITS:
+                body = {"sats": [FIRMS_FILES[k][1] for k in FIRMS], "sources": src, "total": len(rows),
+                        "fields": ["lat", "lon", "minute_utc", "frp_mw", "confidence", "day", "sat", "scan_km", "track_km", "bt_i4_k"],
+                        "rows": rows[:n]}
+                out[n] = gzip.compress(json.dumps(body, separators=(",", ":")).encode(), 6)
+            del rows, body
+            FIRMS_OUT.update(key=key, gz=out, fetched=max(v[1]["fetched"] for v in ok.values()))
+        gz = FIRMS_OUT["gz"][limit]
+    return gz, {"fetched": FIRMS_OUT["fetched"], "cache": "hit"}
+
+
+def _firms_one(k):
+    try:
+        gz, meta = FIRMS[k].get()
+        return gz, meta, None
+    except Unavailable as e:
+        return None, None, str(e)
+
+
 # --------------------------------------------------------------------------- Sentinel-1 RTC (Planetary Computer)
 PC_SEARCH = "https://planetarycomputer.microsoft.com/api/stac/v1/search"
 S1_ID_RE = re.compile(r"^S1[A-D]_(IW|EW|SM)_GRD[HM]_1S[DSH][VH]_\d{8}T\d{6}_\d{8}T\d{6}_\d{6}_[0-9A-F]{6}_rtc$")
@@ -1951,8 +2053,8 @@ class Handler(BaseHTTPRequestHandler):
         try:
             if p == "/api/sats":
                 g = one("group", "fleet")
-                if g == "fleet":
-                    gz, meta = fleet_group()
+                if g in DERIVED:
+                    gz, meta = derived_group(g)
                     return self.cached_out(gz, meta)
                 if g not in SATS:
                     return self.send_err(400, "unknown group")
@@ -2024,6 +2126,15 @@ class Handler(BaseHTTPRequestHandler):
                     return self.send_err(400, "bad mmsi")
                 d = AISD.one(int(m))
                 return self.send_json(d) if d else self.send_err(404, "not heard in the last 30 min")
+            if p == "/api/fires":
+                try:
+                    limit = int(one("limit", "60000"))
+                except ValueError:
+                    limit = 0
+                if limit not in FIRMS_LIMITS:
+                    return self.send_err(400, "limit must be one of " + ", ".join(map(str, FIRMS_LIMITS)))
+                gz, meta = firms_merged(limit)
+                return self.cached_out(gz, meta)
             if p == "/api/gfw/sar":
                 if not KEYS.get("GFW_API_TOKEN"):
                     return self.send_json({"enabled": False, "reason": "missing key",
@@ -2243,6 +2354,10 @@ class Handler(BaseHTTPRequestHandler):
             m = c.mtime()
             if m:
                 cache["usgs:" + k] = {"age_s": int(time.time() - m), "ttl_s": c.ttl}
+        for k, c in FIRMS.items():
+            m = c.mtime()
+            if m:
+                cache["firms:" + k] = {"age_s": int(time.time() - m), "ttl_s": c.ttl}
         m = GIBS_CATALOG.mtime()
         if m:
             cache["gibs:caps"] = {"age_s": int(time.time() - m), "ttl_s": GIBS_CATALOG.ttl}

@@ -2,7 +2,8 @@
 // Lion Satellite Studio — point lookup ("What sees this spot?"): type coordinates or a place, right-click / long-press
 // the globe, or use your location; a Point report lists the satellites over the point now, the next passes (and whether
 // the point falls inside the instrument swath), the imagery and products that already exist for that exact point,
-// nearby events, and the geostationary views. Every row flies to the item and switches its layer on.
+// nearby events, and the geostationary views. Every row flies to the item and switches its layer on. "Next passes" adds
+// rise / peak / set and visibility to the eye for the tracked Earth-observation satellites (computed in passworker.js).
 import { App, $, el, getJSON, store, toast, fmtAgo, fmtUTC, fmtNum, requestRender, FAMILY, skeleton, emptyState, ymd } from './util.js';
 import * as SAT from './sats.js';
 import * as IM from './imagery.js';
@@ -162,7 +163,8 @@ function renderReport(card) {
       el('button', { class: 'btn small ghost', onclick: () => { clearPoint(); $('#card-close').click(); } }, 'Remove pin')));
   const S = {
     now: sec('now', 'Satellites over it now', 'fleet · elevation from the point'),
-    passes: sec('passes', 'Next passes · 24 h', 'inside the instrument swath?'),
+    next: sec('next', 'Next passes', 'rise · peak · set · visible to the eye?'),
+    passes: sec('passes', 'Imaging passes · 24 h', 'inside the instrument swath?'),
     gibs: sec('gibs', 'Daily imagery at this pixel', 'NASA GIBS'),
     s1: sec('s1', 'Sentinel-1 radar scenes', 'Planetary Computer'),
     opt: sec('opt', 'Optical scenes', 'Sentinel-2 · Landsat · HLS'),
@@ -176,6 +178,7 @@ function renderReport(card) {
   const key = `${c.lat},${c.lon}`;
   const still = () => P.cur && `${P.cur.lat},${P.cur.lon}` === key;
   setTimeout(() => { if (still()) { nowSection(S.now.body); P.timer = setInterval(() => { if (still() && S.now.body.isConnected) nowSection(S.now.body); else clearInterval(P.timer); }, 5000); } }, 20);
+  setTimeout(() => still() && nextPassSection(S.next.body), 40);
   setTimeout(() => still() && passSection(S.passes.body), 60);
   gibsSection(S.gibs.body);
   s1Section(S.s1.body);
@@ -229,7 +232,87 @@ function nowSection(body) {
   body.replaceChildren(...kids);
 }
 
-// 2. next passes in 24 h, with the swath test at closest approach
+// 2a. next passes (24 or 48 h): rise / peak / set, max elevation, visible to the eye — SGP4 in a worker, capped list
+// ISS, NISAR, Sentinel-1, Sentinel-2, Landsat 8/9 and SWOT first, then the rest of the fleet in low orbit and a few
+// bright extras (the server's derived group "passes", cut from CelesTrak's cached 'active' list).
+const PASS_FIRST = [25544, 65053, 39634, 62261, 66315, 40697, 42063, 60989, 39084, 49260, 54754];
+const PASS_CAP = 30;
+const NP = { worker: null, id: 0, sats: null, satsT: 0, hours: store.get('ptHours', 24) };
+async function passSats() {
+  if (NP.sats && Date.now() - NP.satsT < 2 * 3600e3) return NP.sats;
+  const { body } = await getJSON('/api/sats?group=passes');
+  const by = new Map(body.map(o => [o.NORAD_CAT_ID, o]));
+  const leo = o => +o.MEAN_MOTION > 11.25 && +o.ECCENTRICITY < 0.25;     // period < 128 min
+  const order = [...PASS_FIRST.filter(n => by.has(n)), ...body.map(o => o.NORAD_CAT_ID).filter(n => !PASS_FIRST.includes(n))];
+  NP.sats = order.map(n => by.get(n)).filter(leo).slice(0, PASS_CAP).map(o => {
+    const f = SAT.FLEET[o.NORAD_CAT_ID];
+    return { norad: o.NORAD_CAT_ID, name: f ? f[1] : o.OBJECT_NAME.replace(/^SENTINEL-/, 'Sentinel-').replace(/ \(ZARYA\)$/, '').replace(/^CSS \(TIANHE\)$/, 'Tiangong (CSS)').replace(/^HST$/, 'Hubble'), color: f ? f[0] : '#c9d4e3', omm: o };
+  });
+  NP.satsT = Date.now();
+  return NP.sats;
+}
+function passWorker() {
+  if (!NP.worker) {
+    NP.worker = new Worker('js/passworker.js', { type: 'module' });
+    NP.worker.onerror = e => { console.error('pass worker', e.message); NP.worker = null; };
+  }
+  return NP.worker;
+}
+const tz = (() => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || 'local'; } catch (e) { return 'local'; } })();
+const lt = t => new Date(t).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+const ld = t => new Date(t).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
+const ut = t => new Date(t).toISOString().slice(11, 19);
+const compass = az => az === null || az === undefined ? '' : ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'][Math.round(((az % 360) + 360) % 360 / 45) % 8];
+async function nextPassSection(body) {
+  const c = P.cur, key = `${c.lat},${c.lon}`;
+  const still = () => P.cur && `${P.cur.lat},${P.cur.lon}` === key;
+  let sats;
+  try { sats = await passSats(); } catch (e) { fail(body, 'next_passes', e); return; }
+  if (!still()) return;
+  const id = ++NP.id, t0 = SAT.now(), hours = NP.hours;
+  const prog = note(`Computing passes of ${sats.length} satellites for the next ${hours} h …`);
+  body.replaceChildren(prog);
+  let w;
+  try { w = passWorker(); } catch (e) { fail(body, 'next_passes', e); return; }
+  const onMsg = ev => {
+    const m = ev.data;
+    if (m.id !== id) return;
+    if (m.type === 'progress') { prog.textContent = `Computing passes … ${m.done} of ${m.of} satellites`; return; }
+    w.removeEventListener('message', onMsg);
+    if (!still() || !body.isConnected) return;
+    drawNextPasses(body, sats, m.passes, t0, hours);
+  };
+  w.addEventListener('message', onMsg);
+  w.postMessage({ type: 'passes', id, lat: c.lat, lon: c.lon, h: 0, t0, hours, sats: sats.map(s => ({ norad: s.norad, omm: s.omm })) });
+}
+function drawNextPasses(body, sats, passes, t0, hours) {
+  const by = new Map(sats.map(s => [s.norad, s]));
+  const vis = passes.filter(p => p.visible);
+  P.report.sections.next_passes = { hours, from: iso(t0), min_elevation_deg: 10, satellites: sats.map(s => s.name),
+    passes: passes.map(p => ({ norad: p.norad, name: by.get(p.norad).name, rise: iso(p.rise), peak: iso(p.peak), set: p.set ? iso(p.set) : null,
+      max_elevation_deg: p.maxEl === null ? null : +p.maxEl.toFixed(1), visible_to_eye: p.visible, visible_from: p.visFrom ? iso(p.visFrom) : null, visible_to: p.visTo ? iso(p.visTo) : null })) };
+  const hrs = el('div', { class: 'seg' }, [24, 48].map(h => el('button', { class: 'seg-b' + (h === hours ? ' on' : ''), onclick: () => { NP.hours = h; store.set('ptHours', h); skeleton(body, 2); nextPassSection(body); } }, `${h} h`)));
+  const only = el('label', { class: 'chk small' }, el('input', { type: 'checkbox', checked: store.get('ptVisOnly', false), onchange: e => { store.set('ptVisOnly', e.target.checked); draw(); } }), ' only passes visible to the eye');
+  const list = el('div', { class: 'pt-list' });
+  const draw = () => {
+    const sel = store.get('ptVisOnly', false) ? vis : passes;
+    list.replaceChildren(...(sel.length ? sel.slice(0, 60).map(p => {
+      const s = by.get(p.norad);
+      const tag = p.visible ? el('span', { class: 'pt-ok' }, `👁 visible${p.visFrom ? ` ${lt(p.visFrom).slice(0, 5)}–${lt(p.visTo).slice(0, 5)}` : ''}`)
+        : el('span', { class: 'muted' }, !p.sunlit ? 'in Earth’s shadow' : p.dark ? 'not visible' : 'daylight');
+      return el('button', { class: 'pt-row np-row', onclick: () => { if (SAT.findSat(p.norad)) SAT.select(p.norad); else toast(`${s.name} is not in the loaded satellite groups (try “Earth resources” or “All active”)`); },
+        title: `Rise ${ut(p.rise)} UTC (az ${p.azRise?.toFixed(0)}°) · peak ${ut(p.peak)} UTC (az ${p.azPeak?.toFixed(0)}°) · set ${p.set ? ut(p.set) + ' UTC' : 'after the window'}${p.azSet !== null ? ` (az ${p.azSet.toFixed(0)}°)` : ''} · sun ${p.sunElPeak.toFixed(0)}° at peak` },
+        el('span', { class: 'dot', style: { background: s.color } }), el('b', {}, s.name), el('span', { class: 'mono' }, `${p.maxEl.toFixed(0)}°`), tag,
+        el('span', { class: 'np-t mono small' }, `${ld(p.rise)} · ${p.rise <= t0 ? 'up now' : lt(p.rise) + ' ' + compass(p.azRise)} → ${lt(p.peak)} → ${p.set ? lt(p.set) + ' ' + compass(p.azSet) : '…'}`),
+        el('span', { class: 'np-t mono small muted' }, `UTC ${ut(p.rise)} → ${ut(p.peak)} → ${p.set ? ut(p.set) : '…'}`));
+    }) : [note(store.get('ptVisOnly', false) ? `No pass visible to the eye in the next ${hours} h (needs a dark sky and a sunlit satellite).` : `No pass above 10° in the next ${hours} h.`)]));
+  };
+  draw();
+  body.replaceChildren(el('div', { class: 'row' }, hrs, only), note(`${passes.length} passes above 10° in the next ${hours} h, ${vis.length} visible to the eye (satellite in sunlight, sun more than 6° below the horizon here). Times: your time zone (${tz}), then UTC; rise → peak → set.`), list,
+    note(`${sats.length} satellites (capped at ${PASS_CAP}): ${sats.map(s => s.name).join(', ')}. Elements from CelesTrak; computed in your browser.`));
+}
+
+// 2b. imaging passes in 24 h, with the swath test at closest approach
 function passSection(body) {
   const c = P.cur, og = obsOf(c.lat, c.lon), t0 = SAT.now(), end = t0 + 86400e3, step = 20e3;
   const sats = App.sats.sats.filter(s => s.fleet && s.cls === 'LEO');
@@ -503,7 +586,8 @@ function markdown() {
   const r = P.report, s = r.sections, L = [];
   L.push(`# Point report — ${r.name}`, '', `- Point: ${fmtLL(r.lat, r.lon)} (${dms(r.lat, 'N', 'S')} ${dms(r.lon, 'E', 'W')})`, `- Generated: ${r.generated} by Lion Satellite Studio`, '');
   if (s.now) { L.push('## Satellites over it now', ''); s.now.satellites.forEach(x => L.push(`- ${x.name} (NORAD ${x.norad}): elevation ${x.elevation_deg}°${x.imaging_now ? `, imaging now (${x.instrument})` : ''}`)); if (!s.now.satellites.length) L.push('- none above the horizon'); L.push(''); }
-  if (s.passes) { L.push('## Next passes (24 h, UTC)', '', '| Satellite | Rise | Set | Max el | Inside swath |', '|---|---|---|---|---|'); s.passes.forEach(p => L.push(`| ${p.name} | ${p.rise.slice(5, 16).replace('T', ' ')} | ${p.set ? p.set.slice(11, 16) : '—'} | ${p.max_elevation_deg}° | ${p.inside_swath ? `yes (${p.inside_swath}), ${p.sun_elevation_deg > 0 ? 'day' : 'night'}` : `no (${p.cross_track_km} km off track)`} |`)); L.push(''); }
+  if (s.next_passes) { L.push(`## Next passes (${s.next_passes.hours} h, UTC, above 10°)`, '', '| Satellite | Rise | Peak | Set | Max el | Visible to the eye |', '|---|---|---|---|---|---|'); s.next_passes.passes.forEach(p => L.push(`| ${p.name} | ${p.rise.slice(5, 16).replace('T', ' ')} | ${p.peak.slice(11, 16)} | ${p.set ? p.set.slice(11, 16) : '—'} | ${p.max_elevation_deg}° | ${p.visible_to_eye ? `yes ${p.visible_from.slice(11, 16)}–${p.visible_to.slice(11, 16)}` : 'no'} |`)); L.push(''); }
+  if (s.passes) { L.push('## Imaging passes (24 h, UTC)', '', '| Satellite | Rise | Set | Max el | Inside swath |', '|---|---|---|---|---|'); s.passes.forEach(p => L.push(`| ${p.name} | ${p.rise.slice(5, 16).replace('T', ' ')} | ${p.set ? p.set.slice(11, 16) : '—'} | ${p.max_elevation_deg}° | ${p.inside_swath ? `yes (${p.inside_swath}), ${p.sun_elevation_deg > 0 ? 'day' : 'night'}` : `no (${p.cross_track_km} km off track)`} |`)); L.push(''); }
   if (s.gibs) { L.push(`## NASA GIBS imagery at this pixel (${s.gibs.date})`, ''); s.gibs.layers.forEach(x => L.push(`- ${x.title}: ${x.has_data === null ? 'unavailable' : x.has_data ? 'data' : 'no data'}`)); L.push(''); }
   if (s.sentinel1) { L.push('## Sentinel-1 RTC scenes', ''); s.sentinel1.forEach(x => L.push(`- ${x.datetime.slice(0, 16)} ${x.platform} ${x.orbit} rel ${x.relative_orbit} — ${x.id}`)); L.push(''); }
   if (s.optical) { L.push('## Optical scenes', ''); for (const [k, v] of Object.entries(s.optical)) { L.push(`### ${OPT[k].title}`); (Array.isArray(v) ? v : []).forEach(x => L.push(`- ${x.datetime.slice(0, 10)} ${x.platform} ${x.cloud_cover === null || x.cloud_cover === undefined ? '' : Math.round(x.cloud_cover) + '% cloud'} — ${x.id}`)); } L.push(''); }

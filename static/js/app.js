@@ -7,6 +7,9 @@ import * as D from './data.js';
 import * as RD from './radar.js';
 import * as PT from './point.js';
 import * as NAIP from './naip.js';
+import * as FI from './fires.js';
+import * as LK from './looks.js';
+import { initMotion } from './motion.js';
 
 const C = window.Cesium;
 C.Ion.defaultAccessToken = 'unused-no-ion'; // Cesium ion is never used: no ion imagery, terrain or geocoder.
@@ -25,7 +28,7 @@ function makeViewer() {
   const s = v.scene;
   App.viewer = v; App.scene = s;
   window.LE = App; // handy for debugging & headless checks
-  App.api = { SAT, IM, D, RD, PT, NAIP };
+  App.api = { SAT, IM, D, RD, PT, NAIP, FI, LK };
   s.globe.baseColor = C.Color.fromCssColorString('#0a1424');
   s.globe.showGroundAtmosphere = true;
   s.globe.enableLighting = true;
@@ -110,6 +113,7 @@ function applyMemMode() {
   App.viewer.resolutionScale = on ? (App.softGL ? 0.6 : 0.85) : 1;   // software WebGL: far fewer pixels to draw
   if (on) { if (App.layers.hires) IM.setHires(false); if (App.layers.terrain) { App.layers.terrain = false; IM.applyTerrain(); } }
   D.redrawHeavy();
+  FI.redraw();
   requestRender();
 }
 App.setLowMem = function (on, why) {
@@ -412,7 +416,7 @@ function flyBox(b, name) {
 // ================================================================ panel
 const SECTIONS = [
   ['explore', 'Explore', 'gold'], ['point', 'What sees this spot?', 'gold'], ['sats', 'Satellites', 'sat'], ['time', 'Time', 'gold'], ['imagery', 'Imagery & terrain', 'gold'],
-  ['nrt', 'Near real time', 'sat'], ['science', 'Earth science layers', 'gold'], ['overlays', 'Overlays', 'gold'],
+  ['nrt', 'Near real time', 'sat'], ['fires', 'Active fires (FIRMS)', 'fire'], ['science', 'Earth science layers', 'gold'], ['overlays', 'Overlays', 'gold'],
   ['radar', 'Radar (Sentinel-1)', 'radar'], ['nisar', 'NISAR radar', 'radar'], ['swot', 'SWOT water', 'water'], ['quakes', 'Earthquakes', 'quake'], ['ships', 'Ships', 'ship'], ['about', 'About & credits', 'gold'],
 ];
 const secBodies = {};
@@ -447,7 +451,7 @@ function highlightActive() {
   const S = App.layers;
   const act = {
     sats: true, imagery: !!S.base, nrt: !!S.nrt || S.firesToday, science: !!S.science, overlays: S.overlays && S.overlays.size > 0,
-    nisar: App.data.nisar.on, radar: App.data.radar && App.data.radar.on, swot: App.data.swot.on, quakes: App.data.quakes.on, ships: App.data.ships.on || App.data.ships.gfwOn,
+    fires: App.data.fires && App.data.fires.on, nisar: App.data.nisar.on, radar: App.data.radar && App.data.radar.on, swot: App.data.swot.on, quakes: App.data.quakes.on, ships: App.data.ships.on || App.data.ships.gfwOn,
   };
   for (const [id, on] of Object.entries(act)) document.querySelector(`details[data-sec="${id}"]`)?.classList.toggle('active-src', !!on);
   const b = $('#badge-sats'); if (b) b.textContent = fmtNum(App.sats.sats.length);
@@ -509,7 +513,7 @@ function startClock() {
   upd(); setInterval(upd, 1000);
 }
 function renderChips() {
-  const order = ['sats', 'tle', 'imagery', 'naip', 'goes', 'radar', 'quake', 'nisar'];
+  const order = ['sats', 'tle', 'look', 'imagery', 'naip', 'goes', 'fires', 'radar', 'quake', 'nisar'];
   const box = $('#chips');
   box.replaceChildren(...order.filter(k => App.status[k] && App.status[k].level !== 'hide').map(k => { const s = App.status[k]; return el('span', { class: `chip ${s.level}`, title: s.title || '' }, el('i'), s.text); }));
 }
@@ -642,6 +646,7 @@ function attributionLine() {
   if (App.layers.hires) parts.push(`EOxCloudless ${2025} by EOX IT Services (contains modified Copernicus Sentinel data 2025), CC BY-NC-SA 4.0`);
   if (App.layers.terrain) parts.push('Terrain: Mapzen/AWS Terrain Tiles (USGS SRTM, GMTED2010, 3DEP; NOAA ETOPO1; …)');
   parts.push('Orbits CelesTrak', 'Quakes USGS');
+  if (FI.credit()) parts.push(FI.credit());
   if (App.data.nisar.on) parts.push('NISAR: NASA/JPL-Caltech, ISRO via ASF DAAC');
   if (App.data.swot.on) parts.push('SWOT: NASA/CNES via PO.DAAC');
   if (App.data.radar && App.data.radar.on) parts.push('Contains modified Copernicus Sentinel data 2026 · Sentinel-1 RTC (Catalyst) via Microsoft Planetary Computer');
@@ -841,7 +846,7 @@ function coach() {
 function buildAbout(status) {
   const b = $('#about-body');
   b.innerHTML = `
-  <p>Lion Satellite Studio is a live 3D globe of open satellite data. Everything shown is keyless and fetched from the providers below; the server caches every upstream (CelesTrak ≥ 2 h, USGS 5 min, GIBS catalogue 6 h, ASF hourly, Hydrocron 12 h) and is not an open proxy.</p>
+  <p>Lion Satellite Studio is a live 3D globe of open satellite data. Everything shown is keyless and fetched from the providers below; the server caches every upstream (CelesTrak ≥ 2 h, USGS 5 min, GIBS catalogue 6 h, ASF hourly, Hydrocron 12 h, FIRMS 45 min) and is not an open proxy.</p>
   <p class="small">Created by <a href="https://github.com/sunnychase" target="_blank" rel="noopener">Sunny Chase</a> in collaboration with Claude (Anthropic). Open source under the MIT licence: <a href="https://github.com/sunnychase/lion-satellite-studio" target="_blank" rel="noopener">github.com/sunnychase/lion-satellite-studio</a>.</p>
   <h3>Data rules</h3>
   <ul><li>Satellite positions are propagated in your browser with SGP4 (satellite.js) from CelesTrak general-perturbation elements.</li>
@@ -855,6 +860,7 @@ function buildAbout(status) {
   <li><b>EOxCloudless 2025</b> — “EOxCloudless https://cloudless.eox.at by EOX IT Services GmbH (Contains modified Copernicus Sentinel data 2025)”, licensed <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" rel="noopener">CC BY-NC-SA 4.0</a> (non-commercial use).</li>
   <li><b>Terrain</b> — Mapzen / AWS Open Data Terrain Tiles: ArcticDEM (DigitalGlobe imagery, NSF awards 1043681, 1559691, 1542736); Australia © Commonwealth of Australia (Geoscience Australia) 2017; Austria © offene Daten Österreichs – DGM; Canada: Open Government Licence – Canada; Europe: Copernicus EU-DEM; global ETOPO1 (U.S. NOAA); Mexico: INEGI Continental relief 2016; New Zealand © LINZ (Crown copyright); Norway © Kartverket; UK © Environment Agency 2015; United States 3DEP (formerly NED) and global GMTED2010 and SRTM courtesy of the U.S. Geological Survey.</li>
   <li><b>USGS</b> earthquake feeds — public domain, U.S. Geological Survey.</li>
+  <li><b>NASA FIRMS</b> active fires — “We acknowledge the use of data and/or imagery from NASA's Fire Information for Resource Management System (FIRMS) (<a href="https://www.earthdata.nasa.gov/data/tools/firms" target="_blank" rel="noopener">earthdata.nasa.gov/firms</a>), part of NASA's Earth Science Data and Information System (ESDIS).” VIIRS 375 m active fire product (NRT, Suomi NPP, NOAA-20, NOAA-21; Schroeder et al. 2014), from the public 24-hour CSV files, no key; NASA data are free and open. Cached 45 min by the server.</li>
   <li><b>NISAR</b> — NASA/JPL-Caltech and ISRO; data via the Alaska Satellite Facility DAAC (ASF SearchAPI). NASA data are free and open; cite “ASF DAAC 2026, contains modified NISAR data”.</li>
   <li><b>SWOT</b> — NASA/JPL and CNES; Hydrocron time series via NASA PO.DAAC.</li>
   <li><b>Sentinel-1</b> — “Contains modified Copernicus Sentinel data [2025–2026]”, used under the <a href="https://sentinel.esa.int/documents/247904/690755/Sentinel_Data_Legal_Notice" target="_blank" rel="noopener">Copernicus Sentinel data legal notice</a> (free, full and open). The radiometrically terrain corrected (RTC) γ⁰ product is processed by Catalyst and published on <b>Microsoft Planetary Computer</b> under <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>; search, tiles and data are used under the <a href="https://planetarycomputer.microsoft.com/terms" target="_blank" rel="noopener">Planetary Computer terms of use</a>. Data are read with anonymous, short-lived SAS tokens (no subscription key; PC rate-limits anonymous use; its RTC docs say an account may be required, so the analysis disables itself if tokens are refused). False-colour render adapted from Sentinel Hub custom scripts (CC BY 4.0), as documented by PC. Analyses are automatic estimates, not validated.</li>
@@ -864,6 +870,7 @@ function buildAbout(status) {
   <li><b>ESA WorldCover 2021 v200</b> (ship-detection land mask, read server-side from Planetary Computer) — “© ESA WorldCover project 2021 / Contains modified Copernicus Sentinel data (2021) processed by ESA WorldCover consortium”, CC BY 4.0.</li>
   <li><b>3D models</b> — NASA 3D Resources (free to use; NASA Images and Media Usage Guidelines): ISS (NASA/Michael D. Carbajal), Terra (NASA/Christian A. Lopez), Aqua, Landsat 8 (also used for Landsat 9), GPM, ICESat-2, OCO-2, GOES (NASA/Christopher R. Meaney), Suomi NPP (NASA/Brian E. Kumanchik, Christian A. Lopez; also used for NOAA-20/21), GRACE (NASA/Christopher M. Garcia; stand-in for GRACE-FO). Generic model for SMAP, SWOT, PACE, NISAR and IS-40E.</li>
   <li><b>Natural Earth</b> borders and gazetteer — public domain. Made with Natural Earth.</li>
+  <li><b>Ideas</b> for smooth motion, sensor looks, FIRMS fire points and pass predictions come from <a href="https://github.com/bilawalsidhu/gods-eye-view" target="_blank" rel="noopener">gods-eye-view</a> by Bilawal Sidhu and Sameh Khamis (Halfpixel), MIT licence; the code here is written anew.</li>
   <li><b>CesiumJS</b> 1.146 — Apache License 2.0. <b>satellite.js</b> 7.1 — MIT. <b>Inter</b> and <b>JetBrains Mono</b> fonts — SIL Open Font License 1.1.</li>
   <li><b>aisstream.io</b> live AIS (only when you add a key). No published terms page; data used for personal, non-commercial viewing.</li>
   <li><b>Global Fishing Watch</b> (only when you add a token) — “Powered by Global Fishing Watch.” <a href="https://globalfishingwatch.org" target="_blank" rel="noopener">globalfishingwatch.org</a>. CC BY-NC 4.0, <b>non-commercial use only</b>.</li>
@@ -875,7 +882,7 @@ function buildAbout(status) {
   <h3>Coming later (needs an account or a sky view)</h3>
   <ul><li>NISAR GCOV backscatter tiles and other product downloads — need a NASA Earthdata login.</li>
   <li>InSAR ground deformation (ASF HyP3 on-demand interferograms) and NISAR GUNW — need a NASA Earthdata login.</li>
-  <li>Copernicus / Sentinel Hub imagery — needs an account.</li><li>FIRMS API (fire detections as points) — needs a MAP_KEY.</li>
+  <li>Copernicus / Sentinel Hub imagery — needs an account.</li><li>FIRMS archive and MODIS / Landsat fire points (FIRMS API) — needs a MAP_KEY.</li>
   <li>USGS EarthExplorer scenes — needs a login.</li><li>Hubble / JWST / MAST sky data — needs a sky view.</li><li>SDO / SOHO solar imagery — needs a sky view.</li></ul>`;
 }
 
@@ -900,7 +907,9 @@ function perfLine() {
   const p = $('#perf-line');
   if (!p || $('#about').classList.contains('hidden')) return;
   const s = App.sats;
-  p.textContent = `${App.fps ? App.fps.toFixed(1) : '—'} frames/s (${App.scene.requestRenderMode ? 'render on demand' : 'continuous'}) · SGP4 for ${fmtNum(s.sats.length)} satellites: ${s.propMs ? s.propMs.toFixed(1) : '—'} ms in a worker, ${s.applyMs ? s.applyMs.toFixed(1) : '—'} ms on the main thread · low-power mode: ${App.lowPower ? 'on' : 'off'}`;
+  const m = App.motion ? App.motion.stats() : null;
+  p.textContent = `${App.fps ? App.fps.toFixed(1) : '—'} frames/s (${App.scene.requestRenderMode ? 'render on demand' : 'continuous'}) · SGP4 for ${fmtNum(s.sats.length)} satellites: ${s.propMs ? s.propMs.toFixed(1) : '—'} ms in a worker, ${s.applyMs ? s.applyMs.toFixed(1) : '—'} ms on the main thread · low-power mode: ${App.lowPower ? 'on' : 'off'}`
+    + (m ? ` · motion pass ${m.passMsMean} ms (p95 ${m.passMsP95}), every ${m.intervalMs} ms; satellites in view ${m.sats ? fmtNum(m.sats.inView) : '—'}, behind the Earth ${m.sats ? fmtNum(m.sats.behindEarth) : '—'}${m.ships && m.ships.ships ? `; ships in view ${fmtNum(m.ships.inView)}, gliding ${fmtNum(m.ships.deadReckoned)}` : ''}` : '');
   setTimeout(perfLine, 3000);
 }
 function degrade() {
@@ -924,6 +933,7 @@ function noWebGL(err) {
 }
 async function boot() {
   try { makeViewer(); } catch (e) { noWebGL(e); return; }
+  initMotion();
   watchInput(App.scene.canvas);
   buildPanel();
   setupSheet();
@@ -943,6 +953,7 @@ async function boot() {
   await IM.initImagery(App.viewer);
   IM.buildUI({ imagery: secBodies.imagery, nrt: secBodies.nrt, science: secBodies.science, overlays: secBodies.overlays });
   { const t = IM.toggle('Low-memory mode (busy or small GPUs): fewer footprints, no 3D models, terrain or hi-res backdrop', App.lowMem, v => App.setLowMem(v)); t.id = 'lowmem-toggle'; secBodies.imagery.append(t); }
+  LK.initLooks(secBodies.imagery);
   if (App.lowMem) applyMemMode();
   if (App.softNotice) setTimeout(() => toast('This browser draws 3D in software here, so a lighter view is on (Low-memory mode, under Imagery & terrain).', 8000), 4000);
   await D.initSwot();
@@ -950,6 +961,7 @@ async function boot() {
   D.buildQuakeUI(secBodies.quakes);
   D.buildNisarUI(secBodies.nisar);
   D.buildShipUI(secBodies.ships, status);
+  FI.buildFiresUI(secBodies.fires);
   RD.buildRadarUI(secBodies.radar);
   PT.buildPointUI(secBodies.point);
   NAIP.initNaip(secBodies.imagery);

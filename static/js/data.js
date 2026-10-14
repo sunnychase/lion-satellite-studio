@@ -3,6 +3,7 @@
 // SWOT water heights (PO.DAAC Hydrocron), ships (aisstream.io) and GFW SAR dark vessels.
 import { App, $, el, getJSON, chip, tick, fmtAgo, fmtUTC, fmtNum, fmtBytes, store, toast, sparkline, drawSeries, requestRender, FAMILY, skeleton, emptyState } from './util.js';
 import { toggle } from './imagery.js';
+import { cull, pxSpeed } from './motion.js';
 
 const C = window.Cesium;
 
@@ -408,7 +409,10 @@ export function buildSwotUI(box) {
 }
 
 // =================================================================== SHIPS (aisstream.io) + GFW SAR
-const SH = App.data.ships = { on: false, gfwOn: false, bb: null, timer: null, enabled: null, gfwEnabled: null, img: {} };
+const SH = App.data.ships = { on: false, gfwOn: false, bb: null, timer: null, enabled: null, gfwEnabled: null, img: {}, map: new Map(), list: [], pool: [] };
+const SHIP_POLL = 12e3;      // the page asks for ships every 12 s
+const DR_MAX_AGE = 120;      // dead-reckon only fixes heard in the last 2 min (older ones stay where they were reported)
+const KN = 0.514444;         // knots -> m/s
 const SHIP_COL = { cargo: '#3ddc84', tanker: '#f59e0b', passenger: '#60a5fa', fishing: '#f472b6', other: '#a3e635' };
 function arrowImage() {
   if (SH.arrowUrl) return SH.arrowUrl;
@@ -446,21 +450,92 @@ async function loadShips() {
     renderShipInfo(null, body);
   } catch (e) { renderShipInfo(`Ships unavailable right now (${e.message}) — retrying`); }
 }
+// Ships are kept by MMSI and updated in place (no rebuild of the whole collection every 12 s). Between updates a moving
+// ship glides along its course at its speed from the time of its last AIS fix, never further than one update interval
+// past the newest data; the motion pass (motion.js) moves only the ships in view and hides the ones behind the Earth.
 function drawShips(body) {
   const scene = App.scene;
   if (!SH.bbc) SH.bbc = scene.primitives.add(new C.BillboardCollection({ scene }));
-  SH.bbc.removeAll();
   const cap = App.lowMem ? 2000 : App.isPhone() ? 5000 : 12000;
-  const sbd = new C.NearFarScalar(2e5, 1.0, 8e6, 0.35);
+  const sbd = SH.sbd || (SH.sbd = new C.NearFarScalar(2e5, 1.0, 8e6, 0.35));
+  const t = Date.now(), seen = new Set();
   for (const s of body.ships.slice(0, cap)) {
     const [mmsi, lat, lon, cog, hdg, sog, cls, age] = s;
+    seen.add(mmsi);
     const dir = hdg >= 0 ? hdg : (cog >= 0 && sog > 0.5 ? cog : -1);
-    SH.bbc.add({ position: C.Cartesian3.fromDegrees(lon, lat, 0), image: dir >= 0 ? arrowImage() : dotImage(), width: dir >= 0 ? 14 : 9, height: dir >= 0 ? 14 : 9,
-      color: C.Color.fromCssColorString(SHIP_COL[cls] || SHIP_COL.other).withAlpha(age > 900 ? 0.55 : 1), rotation: dir >= 0 ? -C.Math.toRadians(dir) : 0, alignedAxis: dir >= 0 ? C.Cartesian3.UNIT_Z : C.Cartesian3.ZERO,
-      scaleByDistance: sbd, id: { kind: 'ship', id: mmsi }, disableDepthTestDistance: 1e6 });
+    const look = `${dir >= 0 ? 'a' : 'd'}${cls}${age > 900 ? 's' : ''}`;
+    let r = SH.map.get(mmsi);
+    if (!r) {
+      const o = { position: C.Cartesian3.fromDegrees(lon, lat, 0), image: dir >= 0 ? arrowImage() : dotImage(), width: dir >= 0 ? 14 : 9, height: dir >= 0 ? 14 : 9,
+        color: C.Color.fromCssColorString(SHIP_COL[cls] || SHIP_COL.other).withAlpha(age > 900 ? 0.55 : 1), rotation: dir >= 0 ? -C.Math.toRadians(dir) : 0, alignedAxis: dir >= 0 ? C.Cartesian3.UNIT_Z : C.Cartesian3.ZERO,
+        scaleByDistance: sbd, id: { kind: 'ship', id: mmsi }, disableDepthTestDistance: 1e6 };
+      // reuse a billboard of a ship that left (removing one makes Cesium rebuild the whole vertex array)
+      const bb = SH.pool.pop();
+      if (bb) { if (bb.image !== o.image) bb.image = o.image; bb.width = o.width; bb.height = o.height; bb.color = o.color; bb.rotation = o.rotation; bb.alignedAxis = o.alignedAxis; bb.position = o.position; bb.id = o.id; bb.show = true; }
+      r = { bb: bb || SH.bbc.add(o), look, dir };
+      SH.map.set(mmsi, r);
+    } else if (r.look !== look || r.dir !== dir) {
+      const b = r.bb;
+      if ((r.dir >= 0) !== (dir >= 0)) { b.image = dir >= 0 ? arrowImage() : dotImage(); b.width = b.height = dir >= 0 ? 14 : 9; b.alignedAxis = dir >= 0 ? C.Cartesian3.UNIT_Z : C.Cartesian3.ZERO; }
+      b.rotation = dir >= 0 ? -C.Math.toRadians(dir) : 0;
+      if (r.look !== look) b.color = C.Color.fromCssColorString(SHIP_COL[cls] || SHIP_COL.other).withAlpha(age > 900 ? 0.55 : 1);
+      r.look = look; r.dir = dir;
+    }
+    const moved = r.lat !== lat || r.lon !== lon;
+    r.lat = lat; r.lon = lon; r.cog = cog; r.v = sog * KN; r.fix = t - age * 1000; r.until = t + SHIP_POLL;
+    r.dr = sog >= 0.5 && cog >= 0 && cog < 360 && age <= DR_MAX_AGE;
+    if (moved || !r.p) { r.p = C.Cartesian3.fromDegrees(lon, lat, 0, undefined, r.p); r.tPl = 0; }
+    if (!r.dr) r.bb.position = r.p;
   }
+  for (const [m, r] of SH.map) if (!seen.has(m)) { r.bb.show = false; SH.pool.push(r.bb); SH.map.delete(m); }
+  if (SH.pool.length > 3000) for (const bb of SH.pool.splice(2000)) SH.bbc.remove(bb);   // keep a modest spare pool
+  SH.list = [...SH.map.values()];          // the motion pass walks this array (it can stop and resume between frames)
+  App.motion.kick();
   requestRender();
 }
+export function clearShips() { if (SH.bbc) SH.bbc.removeAll(); SH.map.clear(); SH.list = []; SH.pool = []; requestRender(); }
+const shipScratch = new C.Cartesian3();
+const shipMotion = {
+  name: 'ships', vis: 0, hid: 0, moved: 0, hideDue: 0, ms: 0, i: 0, acc: null,
+  active: () => SH.on && SH.map.size > 0,
+  // one sweep over all ships, spread over several frames when it would overrun the frame budget (deadline)
+  update(ctx, deadline) {
+    const t0 = performance.now(), t = Date.now();
+    if (this.i === 0 || !this.acc || this.acc.list !== SH.list) {
+      // ships that went behind the Earth are hidden once the camera rests (or when many are due): while it moves the
+      // depth test hides them already, and one upload per billboard on every pass made rotating the globe stutter
+      const hide = (!App.camMoving && !App.pointerDown) || this.hideDue / Math.max(1, SH.list.length) > 0.1;
+      this.acc = { list: SH.list, vis: 0, hid: 0, moved: 0, px: 0, ms: 0, hide, hideDue: 0 }; this.i = 0;
+    }
+    const a = this.acc, list = a.list, n = list.length;
+    let ch = 0, i = this.i;
+    for (; i < n; i++) {
+      if ((i & 1023) === 1023 && performance.now() > deadline) break;
+      const r = list[i], p = r.p, c = cull(p.x, p.y, p.z, 5000);
+      if (c < 0) { a.hid++; if (r.bb.show) { if (a.hide) { r.bb.show = false; ch++; } else a.hideDue++; } continue; }
+      if (!r.bb.show) { r.bb.show = true; ch++; }
+      if (c === 0) continue;                       // outside the view: not moved
+      a.vis++;
+      if (!r.dr) continue;
+      const q = pxSpeed(r.v, p.x, p.y, p.z);
+      if (t < r.until && q > a.px) a.px = q;
+      if (r.tPl && q * (t - r.tPl) < 400) continue;               // moved < 0.4 px since it was placed
+      const dt = Math.max(0, Math.min(t, r.until) - r.fix) / 1000;   // seconds since the fix, capped (see drawShips)
+      const d = r.v * dt, h = r.cog * Math.PI / 180;
+      const lat = r.lat + d * Math.cos(h) / 111320, lon = r.lon + d * Math.sin(h) / (111320 * Math.max(0.01, Math.cos(r.lat * Math.PI / 180)));
+      r.bb.position = C.Cartesian3.fromDegrees(lon, lat, 0, undefined, shipScratch);
+      r.tPl = t; ch++; a.moved++;
+    }
+    a.ms += performance.now() - t0;
+    if (i < n) { this.i = i; return { partial: true, changed: ch }; }
+    this.i = 0;
+    this.vis = a.vis; this.hid = a.hid; this.moved = a.moved; this.hideDue = a.hideDue; this.ms = a.ms;
+    return { px: a.px, changed: ch, maxGap: SHIP_POLL };
+  },
+  unhideAll() { let k = 0; for (const r of SH.list) if (!r.bb.show) { r.bb.show = true; k++; } return k; },   // drag start
+  stats() { return { ships: SH.map.size, inView: this.vis, behindEarth: this.hid, deadReckoned: this.moved, lastMs: +this.ms.toFixed(2) }; },
+};
+App.motion.register(shipMotion);
 function renderShipInfo(msg, body) {
   const box = $('#ship-info');
   if (!box) return;
@@ -520,7 +595,7 @@ export function buildShipUI(box, status) {
   const t1 = toggle(SH.enabled ? 'Live ships (AIS, refresh every 12 s)' : 'Ships: add a free aisstream.io key (see About)', SH.on, v => {
     SH.on = v; clearInterval(SH.timer);
     if (v) { loadShips(); SH.timer = setInterval(loadShips, 12e3); }
-    else if (SH.bbc) { SH.bbc.removeAll(); requestRender(); }
+    else clearShips();
   }, 'ship', !SH.enabled);
   const t2 = toggle(SH.gfwEnabled ? 'Dark vessels: radar detections with no AIS (Global Fishing Watch)' : 'Dark vessels: add a free Global Fishing Watch token', SH.gfwOn, v => { SH.gfwOn = v; loadGfw(); }, 'ship', !SH.gfwEnabled);
   if (!SH.enabled) info.replaceChildren(el('div', { class: 'empty' }, ais === 'disabled' ? 'Ships are switched off for this server run.' : 'Ships stay off until AISSTREAM_API_KEY is added to the server’s keys file (keys.env) and the server is restarted.'));

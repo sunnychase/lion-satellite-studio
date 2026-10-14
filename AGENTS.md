@@ -20,7 +20,10 @@ fetches, caches and validates every upstream source. An optional worker analyses
 | `static/js/imagery.js` | GIBS / EOX / terrain layers, near-real-time frames, legends |
 | `static/js/data.js` | earthquakes, NISAR, SWOT, ships, Global Fishing Watch |
 | `static/js/radar.js` | Sentinel-1: search, tiles, swipe, analysis UI |
-| `static/js/point.js` | Point report: coordinate parsing, right-click / long-press, passes and swath test, data lookups, export |
+| `static/js/point.js`, `passworker.js` | Point report: coordinate parsing, right-click / long-press, next passes (SGP4 in a worker: rise / peak / set, visible to the eye), imaging passes and swath test, data lookups, export |
+| `static/js/motion.js` | smooth motion + horizon culling: dead reckoning of satellites and ships between updates, one pass per frame when due |
+| `static/js/fires.js` | NASA FIRMS active fires (VIIRS 375 m, last 24 h) as one point collection, built in slices |
+| `static/js/looks.js` | sensor looks (night vision, thermal, CRT, noir): single-pass post-process shaders |
 | `static/js/util.js` | shared helpers and app state (`App`, exposed as `window.LE`) |
 | `static/data/` | `missions.json` (sourced facts per satellite), `swot_features.json` (whitelist), gazetteer, borders |
 | `static/models/` | NASA 3D models and `manifest.json` (credits, scale) |

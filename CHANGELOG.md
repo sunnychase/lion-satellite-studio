@@ -2,6 +2,45 @@
 
 Updates to Lion Satellite Studio, newest first. The project has no version numbers; each entry is dated.
 
+## 2026-10-14 — Smooth motion, sensor looks, FIRMS fires, next passes
+
+Four ideas borrowed from [gods-eye-view](https://github.com/bilawalsidhu/gods-eye-view) (Bilawal Sidhu and Sameh Khamis,
+Halfpixel, MIT), written anew for this app; credited in NOTICE.md, the README and the About box.
+
+- **Smooth motion + horizon culling** (`static/js/motion.js`). Satellites and AIS ships are dead-reckoned between data
+  updates: satellites from the worker's position plus its new Earth-fixed velocity, ships along their last course at their
+  last speed from the time of the fix, never more than one update interval past the newest data (ship fixes older than
+  2 minutes are not extrapolated). One pass before a frame moves only what is in view, hides what is behind the Earth (once
+  the camera rests: while it moves, the depth test hides them already), rewrites a point only once it has moved about half a
+  pixel, and asks for frames only as often as the fastest visible object moves about a pixel. Writes are grouped so Cesium
+  re-uploads a whole buffer once instead of hundreds of single points; ships are updated in place by MMSI and their
+  billboards reused (no rebuild of the collection every 12 s). While a finger or mouse is down there are no passes, as
+  before (the drag throttle); low-memory mode is unchanged.
+- **Sensor looks** (`static/js/looks.js`): Normal / Night vision / Thermal (ironbow on brightness) / CRT / Noir, each a single
+  cheap post-process shader with no lens warp, so picking is unchanged. Eye button in the top bar and a row under
+  *Imagery & terrain*; off by default; kept in the browser.
+- **NASA FIRMS active fires** (keyless): `/api/fires?limit=20000|60000|150000` merges FIRMS's public 24-hour VIIRS 375 m CSVs
+  (Suomi NPP, NOAA-20, NOAA-21), each a fixed URL cached 45 min with a 40 MB cap, newest first; a satellite whose file fails
+  is left out and named. The page draws them as one point collection built in slices (60,000 points, 20,000 on phones and
+  in low-memory mode): colour = age, size = fire radiative power; tap for time, satellite, confidence, FRP, brightness and
+  pixel size. New panel section *Active fires (FIRMS)*.
+- **Next passes** in the Point report (`static/js/passworker.js`): rise / peak / set in your time zone and UTC, maximum
+  elevation and *visible to the eye* (satellite sunlit, sun below −6° at the point) for up to 30 satellites over 24 or 48 h,
+  computed with SGP4 in a Web Worker. The satellites come from a new derived group `/api/sats?group=passes` (the fleet plus
+  Sentinel-1A/1C/1D, Sentinel-2A/2B/2C, Sentinel-3A/3B, Tiangong and Hubble, cut from the cached CelesTrak *active* list; no
+  extra CelesTrak requests). The swath section is renamed *Imaging passes*; both are in the Markdown and GeoJSON exports.
+
+**Measured** (GPU Chromium, 1600×900, ~16,700 satellites + live AIS ships, the same server and data for both versions;
+render CPU per frame, mean / 95th percentile):
+
+| view | before | after |
+|---|---|---|
+| whole globe, spinning | 6.8 / 8.4 ms, 56 fps | 6.8 / 8.8 ms, 57 fps |
+| North Sea, 900 km | 5.6 / 6.9 ms, 55 fps | 6.0 / 7.3 ms, 59 fps |
+| harbour, 40 km | 7.5 / 8.8 ms, 59 fps | 7.6 / 9.1 ms, 59 fps |
+| main-thread update per satellite batch (North Sea / harbour) | 3.5 / 6.7 ms | 1.9 / 2.5 ms |
+| render on demand, North Sea, nobody touching it | 2 frames/s | 15 frames/s (satellites in view glide) |
+
 ## 2026-10-13 — NAIP aerial photos up close (US)
 
 - Below about 3 km over the United States (lower 48, Hawaii, Puerto Rico), the newest USDA NAIP aerial photograph under the

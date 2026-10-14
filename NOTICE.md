@@ -54,7 +54,7 @@ project. Models were converted to GLB and trimmed (details in `static/models/man
 
 ## Data shown at run time (not included)
 
-The app fetches data from CelesTrak, NASA GIBS/EOSDIS, USGS, ASF DAAC, PO.DAAC, Microsoft Planetary Computer (Copernicus
+The app fetches data from CelesTrak, NASA GIBS/EOSDIS, NASA FIRMS (VIIRS active fires, public 24-hour files), USGS, ASF DAAC, PO.DAAC, Microsoft Planetary Computer (Copernicus
 Sentinel-1 and Sentinel-2, USGS Landsat Collection 2, NASA HLS, USDA NAIP aerial photography (public domain), ESA WorldCover), NASA Earthdata GIS (SWOT RiverSP
 reaches), EOX (EOxCloudless 2025, CC BY-NC-SA 4.0, non-commercial), AWS Terrain Tiles, and, with your own
 keys, aisstream.io and Global Fishing Watch (CC BY-NC 4.0, non-commercial); address search uses OpenStreetMap Nominatim (data © OpenStreetMap
@@ -67,6 +67,14 @@ in the README's [Data sources and licences](README.md#data-sources-and-licences)
 attribution line at the bottom of each frame. Some frames include EOxCloudless 2025 imagery (CC BY-NC-SA 4.0) and Copernicus
 Sentinel data; those images and the video may therefore be reused only on the providers' terms (for the EOX parts:
 non-commercial, share-alike, with attribution). The Lion logo in `docs/images/logo.png` belongs to this project.
+
+## Ideas borrowed
+
+- **gods-eye-view** by Bilawal Sidhu and Sameh Khamis (Halfpixel), MIT licence,
+  [github.com/bilawalsidhu/gods-eye-view](https://github.com/bilawalsidhu/gods-eye-view): the ideas behind four features of
+  this app (dead-reckoned smooth motion with horizon culling, the sensor looks — night vision, thermal/ironbow, CRT, noir —
+  NASA FIRMS fire points, and satellite pass predictions with rise / peak / set). No code was copied; the implementation in
+  `static/js/motion.js`, `looks.js`, `fires.js`, `passworker.js` and the server's FIRMS section was written for this project.
 
 ## Layout
 

@@ -9,6 +9,7 @@ import { eciToEcf, eciToGeodetic, ecfToLookAngles, degreesToRadians, radiansToDe
 import { sunPos } from '../vendor/satellite/sun.js';
 import { jday } from '../vendor/satellite/ext.js';
 import { toggle } from './imagery.js';
+import { cull, pxSpeed } from './motion.js';
 
 const C = window.Cesium;
 const RE = 6378.137;      // km
@@ -44,7 +45,7 @@ const st = App.sats = {
   groupData: {}, groupMeta: {}, groupCounts: {},
   sats: [],          // merged list: {omm, norad, name, groups:Set, color, fleet, rec, cls}
   byNorad: new Map(),
-  points: null, labels: null, worker: null, busy: false, seq: 0, lastPos: null, lastVel: null,
+  points: null, labels: null, worker: null, busy: false, seq: 0, lastPos: null, lastVel: null, lastVf: null,
   speed: 1, simBase: Date.now(), wallAnchor: Date.now(),
   selected: null, follow: true, ents: [], models: new Map(), missions: {}, manifest: {},
   hover: null, labelsOn: store.get('satLabels', true),
@@ -157,10 +158,11 @@ function buildPrimitives() {
 
 // ------------------------------------------------------------------ propagation loop
 let loopTimer = null;
+const loopMs = () => st.speed <= 1 ? 1000 : st.speed <= 10 ? 250 : 100;
 function restartLoop() {
   clearInterval(loopTimer);
-  const ms = st.speed === 0 ? 1000 : st.speed <= 1 ? 1000 : st.speed <= 10 ? 250 : 100;
-  loopTimer = setInterval(step, ms);
+  loopTimer = setInterval(step, loopMs());
+  st.forcePlace = true;   // simulated time may have jumped: the next batch places every point
   // continuous rendering only while time runs fast or something is followed
   updateRenderMode();
   step();
@@ -186,26 +188,95 @@ function onWorker(ev) {
   if (m.type !== 'pos') return;
   st.busy = false;
   if (m.seq !== st.seq) { step(); return; }
-  st.lastPos = m.pos; st.lastVel = m.vel; st.lastT = m.t;
+  st.lastPos = m.pos; st.lastVel = m.vel; st.lastVf = m.vf; st.lastT = m.t;
   st.propMs = performance.now() - st.postT; // worker round trip (SGP4 for every satellite)
-  const t0 = performance.now();
-  const pos = m.pos;
-  const labelsOn = st.labelsOn;
-  for (let i = 0; i < st.sats.length; i++) {
-    const s = st.sats[i];
-    const x = pos[i * 3];
-    if (isNaN(x)) { s.pt.show = false; if (s.lbl) s.lbl.show = false; continue; }
-    scratch.x = x; scratch.y = pos[i * 3 + 1]; scratch.z = pos[i * 3 + 2];
-    s.pt.position = scratch;
-    s.pt.show = !(st.models.has(s.norad) && st.models.get(s.norad).show);
-    if (s.lbl) { s.lbl.position = scratch; s.lbl.show = labelsOn; }
-  }
-  st.applyMs = performance.now() - t0; // main-thread cost of moving the points
+  st.fresh = true;
+  App.motion.kick();     // the next frame places the points (only the ones in view; see satMotion)
   if (!st.firstPaint) { st.firstPaint = true; App.events.dispatchEvent(new Event('satsready')); }
   manageModels();
   if (st.selected) updateLive();
   requestRender();
 }
+
+// Dead reckoning between worker batches: position + Earth-fixed velocity x the simulated seconds since the batch, at
+// most one batch interval. Points behind the Earth are hidden; points outside the view are not moved, and a point is
+// only rewritten once it has moved about half a pixel on screen since it was last placed.
+const satMotion = {
+  name: 'sats', vis: 0, hid: 0, off: 0, changed: 0, need: 0, hideDue: 0, whole: false, ms: 0, i: 0, acc: null,
+  visList: [], dueList: [],
+  active: () => !!(st.lastPos && st.points && st.sats.length && st.lastPos.length === st.sats.length * 3),
+  // One sweep over all satellites, spread over several frames if it would overrun the frame budget (deadline). The
+  // sweep first decides what to write, then writes it: Cesium re-uploads a whole point buffer in one call when more
+  // than 10% of the points changed, but sends one upload per point below that, so a few hundred scattered writes cost
+  // more than rewriting everything. Few due -> write those; many due -> write every point in view (one upload).
+  update(ctx, deadline) {
+    const t0 = performance.now(), n = st.sats.length;
+    if (this.i === 0 || !this.acc || this.acc.n !== n) {
+      const force = st.fresh && st.forcePlace;
+      if (force) st.forcePlace = false;
+      // hiding points that went behind the Earth waits while the camera moves (the depth test already hides them);
+      // it is done once the camera rests, or when many are due
+      const hide = force || (!App.camMoving && !App.pointerDown) || this.hideDue / n > 0.1;
+      this.acc = { n, vis: 0, hid: 0, off: 0, px: 0, hideDue: 0, ms: 0, force, hide, fresh: st.fresh };
+      this.visList.length = 0; this.dueList.length = 0;
+      st.fresh = false; this.i = 0;
+    }
+    const a = this.acc, force = a.force, hide = a.hide, pos = st.lastPos, vf = st.lastVf, vel = st.lastVel;
+    const dt = this.dt(), sp = Math.max(0, st.speed), models = st.models.size ? st.models : null, wall = performance.now();
+    let ch = 0, i = this.i;
+    for (; i < n; i++) {
+      if ((i & 1023) === 1023 && performance.now() > deadline) break;
+      const s = st.sats[i], k = i * 3, x0 = pos[k];
+      if (isNaN(x0)) { if (s.pt.show) { s.pt.show = false; ch++; } if (s.lbl && s.lbl.show) s.lbl.show = false; continue; }
+      const x = x0 + (vf ? vf[k] * dt : 0), y = pos[k + 1] + (vf ? vf[k + 1] * dt : 0), z = pos[k + 2] + (vf ? vf[k + 2] * dt : 0);
+      const c = cull(x, y, z, 50e3);
+      if (c < 0) { a.hid++; if (s.pt.show) { if (hide) { s.pt.show = false; ch++; if (s.lbl) s.lbl.show = false; } else a.hideDue++; } continue; }
+      if (c === 0 && s.placed && !force) { a.off++; continue; }
+      a.vis++;
+      const q = sp ? pxSpeed(vel[i] * 1000 * sp, x, y, z) : 0;
+      if (c === 1 && q > a.px) a.px = q;
+      this.visList.push(i);
+      const show = !(models && models.has(s.norad) && models.get(s.norad).show);
+      if (force || !s.placed || s.pt.show !== show || q * (wall - s.tPl) >= 400) this.dueList.push(i);   // moved >= 0.4 px
+    }
+    a.ms += performance.now() - t0;
+    if (i < n) { this.i = i; return { partial: true, changed: ch }; }
+    // the writes
+    const t1 = performance.now();
+    const whole = this.dueList.length > n * 0.01 && this.visList.length >= n * 0.1;
+    const list = whole ? this.visList : this.dueList, labelsOn = st.labelsOn;
+    for (const j of list) {
+      const s = st.sats[j], k = j * 3;
+      scratch.x = pos[k] + (vf ? vf[k] * dt : 0); scratch.y = pos[k + 1] + (vf ? vf[k + 1] * dt : 0); scratch.z = pos[k + 2] + (vf ? vf[k + 2] * dt : 0);
+      s.pt.position = scratch; s.placed = true; s.tPl = wall;
+      const show = !(models && models.has(s.norad) && models.get(s.norad).show);
+      if (s.pt.show !== show) s.pt.show = show;
+      if (s.lbl) { s.lbl.position = scratch; if (s.lbl.show !== labelsOn) s.lbl.show = labelsOn; }
+    }
+    ch += list.length; a.ms += performance.now() - t1;
+    this.i = 0;
+    this.vis = a.vis; this.hid = a.hid; this.off = a.off; this.changed = list.length; this.need = this.dueList.length; this.hideDue = a.hideDue; this.whole = whole; this.ms = a.ms;
+    if (a.fresh) st.applyMs = a.ms;   // main-thread cost of placing the points after a batch (summed over its frames)
+    return { px: a.px, changed: ch, maxGap: loopMs() };
+  },
+  // drag start: show and place every point hidden behind the Earth (returns how many)
+  unhideAll() {
+    const pos = st.lastPos, vf = st.lastVf, dt = this.dt(), models = st.models.size ? st.models : null, wall = performance.now();
+    let k = 0;
+    for (let i = 0; i < st.sats.length; i++) {
+      const s = st.sats[i], j = i * 3;
+      if (s.pt.show || isNaN(pos[j]) || (models && models.has(s.norad) && models.get(s.norad).show)) continue;
+      scratch.x = pos[j] + (vf ? vf[j] * dt : 0); scratch.y = pos[j + 1] + (vf ? vf[j + 1] * dt : 0); scratch.z = pos[j + 2] + (vf ? vf[j + 2] * dt : 0);
+      s.pt.position = scratch; s.pt.show = true; s.placed = true; s.tPl = wall;
+      if (s.lbl) { s.lbl.position = scratch; s.lbl.show = st.labelsOn; }
+      k++;
+    }
+    return k;
+  },
+  // simulated seconds since the batch, at most one batch interval
+  dt() { const span = loopMs() * Math.max(1, st.speed) / 1000; return st.lastVf ? Math.max(-span, Math.min(span, (now() - st.lastT) / 1000)) : 0; },
+  stats() { return { inView: this.vis, behindEarth: this.hid, offView: this.off, written: this.changed, due: this.need, wholeBuffer: this.whole, lastMs: +this.ms.toFixed(2) }; },
+};
 
 // ------------------------------------------------------------------ single-satellite math (main thread)
 export function satState(s, tms) {
@@ -650,6 +721,7 @@ export async function initSats() {
   st.worker = new Worker('js/satworker.js', { type: 'module' });
   st.worker.onmessage = onWorker;
   st.worker.onerror = e => { console.error('sat worker', e.message); toast('Satellite worker failed to start'); };
+  App.motion.register(satMotion);
   try { st.missions = (await (await fetch('data/missions.json')).json()).missions || {}; } catch (e) { st.missions = {}; }
   try { const mj = await (await fetch('models/manifest.json')).json(); st.manifest = mj.models || mj; } catch (e) { st.manifest = {}; }
   await refreshGroups();

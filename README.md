@@ -77,6 +77,7 @@ folder; see [Configuration](#configuration)). To run it in the background, adapt
         ├── CelesTrak ................ orbital elements (GP data)          cache ≥ 2 h per group (CelesTrak's rule)
         ├── NASA GIBS ................ layer catalogue + sub-daily times     6 h / 5 min
         ├── USGS ..................... earthquakes, last day and week       5 min
+        ├── NASA FIRMS ............... VIIRS active fires, public 24 h CSVs 45 min per satellite, 40 MB cap
         ├── ASF (NISAR) .............. granule footprints → local SQLite    hourly poll + slow backfill
         ├── PO.DAAC Hydrocron (SWOT) . river and lake heights, 44 places    12 h, one request at a time
         ├── NASA Earthdata GIS ....... SWOT reaches near a point (keyless)  1 h
@@ -86,7 +87,7 @@ folder; see [Configuration](#configuration)). To run it in the background, adapt
         └── Global Fishing Watch (your token)  SAR vessel detections      6 h
 ```
 
-The page never talks to CelesTrak, ASF, Hydrocron, Planetary Computer's search, aisstream or Global Fishing Watch directly:
+The page never talks to CelesTrak, FIRMS, ASF, Hydrocron, Planetary Computer's search, aisstream or Global Fishing Watch directly:
 the server does, once, and every viewer shares the cached answer. Keys stay on the server and are never sent to the browser.
 Imagery tiles (GIBS, EOX, Planetary Computer's Sentinel-1, optical and NAIP tiles through the server) and terrain load as the camera moves.
 
@@ -106,6 +107,9 @@ Imagery tiles (GIBS, EOX, Planetary Computer's Sentinel-1, optical and NAIP tile
 | <img src="docs/images/radar-water-oroville.webp" width="100%" alt="Sentinel-1 water analysis of Lake Oroville"> | **Your own radar analysis.** Draw a box (up to 2,500 km²) and the optional worker reads only that window of Sentinel-1 RTC from Planetary Computer: **open water** (Lee filter + Otsu threshold), **change** between two passes, **bright targets at sea** (CFAR ship detection) or a **12-month backscatter time series**. Results come with the method, the threshold and a GeoJSON download. |
 | <img src="docs/images/radar-ships-rotterdam.webp" width="100%" alt="Ship detections off Rotterdam"> | **Ships at sea from radar.** CFAR detection over sea pixels only (Natural Earth land plus ESA WorldCover 10 m as the land mask), with length and confidence per target. With an aisstream.io key, near-live scenes are cross-checked against AIS. |
 | <img src="docs/images/swipe-oroville.webp" width="100%" alt="Before/after swipe of two Sentinel-1 passes"> | **Before / after swipe.** Compare two radar passes of the same orbit, or radar against true colour, with a divider you drag. The *Radar sees through clouds* tour does this for you. |
+| | **Active fires as points (NASA FIRMS).** Every VIIRS 375 m fire detection of the last 24 hours from Suomi NPP, NOAA-20 and NOAA-21 — about 250,000 a day; the newest 60,000 are drawn (20,000 on phones and in low-memory mode). Colour shows the age (bright = newest), size the fire radiative power; tap a dot for its time, satellite, confidence and FRP. Keyless: the server reads FIRMS's public 24-hour CSV files and caches them for 45 minutes. |
+| | **Sensor looks.** Night vision, Thermal (an ironbow palette on brightness — a look, not temperatures), CRT and Noir, from the eye button in the top bar or under *Imagery & terrain*. Each is one cheap full-screen shader; off by default and remembered in your browser; clicks and picking work the same in every look. |
+| | **Smooth motion.** Satellites and AIS ships glide between data updates instead of jumping: each is dead-reckoned from its last position and velocity (course and speed for ships), never more than one update interval past the newest data. Objects behind the Earth are hidden and objects outside the view are not moved, and the page redraws only as often as the fastest visible object moves about a pixel. |
 | <img src="docs/images/nisar-granule.webp" width="100%" alt="A NISAR granule card with the browse image draped on the globe"> | **Built to explore.** One-tap guided tours (ISS, GOES, fires, SWOT, night, radar, NISAR), search by satellite, NORAD id, place, river or street address (OpenStreetMap, on Enter), time controls (pause, real time, ×10, ×100), a share link that restores the view, PNG capture with credits burned in, and a status line for every source. |
 
 **On a phone** the panel becomes a bottom sheet and every card fits one hand:
@@ -122,7 +126,8 @@ Type an address or a place (*1 Main St, Springfield* or *Golden Gate Bridge*), c
 | Section | How it is worked out |
 |---|---|
 | **Satellites over it now** | Every fleet satellite above the point's horizon, with its elevation angle; *imaging now* when the point lies inside the instrument swath (the swath widths in `missions.json`) within ±100 km of the satellite's current position. With the *All active* group loaded, a count of everything above the horizon. |
-| **Next passes (24 h)** | Rise, set and maximum elevation of each low-orbit fleet satellite, and whether the point falls **inside the instrument swath** at closest approach (cross-track distance vs the swath, nadir gaps included), day or night. This is the "which satellite will have data here" answer. |
+| **Next passes (24 or 48 h)** | Rise, peak and set (your time zone and UTC, with compass directions) and the maximum elevation of every pass above 10° of up to 30 satellites: ISS, NISAR, Sentinel-1A/1C/1D, Sentinel-2A/2B/2C, Landsat 8 and 9 and SWOT first, then the rest of the fleet in low orbit, Sentinel-3A/3B, Tiangong and Hubble. A pass is **visible to the eye** when the satellite is in sunlight while the sun is more than 6° below the point's horizon. Computed with SGP4 in a Web Worker, so the page never stalls. |
+| **Imaging passes (24 h)** | Rise, set and maximum elevation of each low-orbit fleet satellite, and whether the point falls **inside the instrument swath** at closest approach (cross-track distance vs the swath, nadir gaps included), day or night. This is the "which satellite will have data here" answer. |
 | **Daily imagery at this pixel** | One NASA GIBS tile per layer at ~1 km per pixel, read in your browser: MODIS Terra/Aqua and VIIRS (Suomi NPP, NOAA-20, NOAA-21) true colour and the active science layer, for a date you pick. |
 | **Sentinel-1 radar** | The newest 15 Sentinel-1 RTC scenes whose footprint contains the point (Planetary Computer STAC point search); tap one to show it. |
 | **Optical scenes** | The newest Sentinel-2 L2A, Landsat Collection 2 L2 and HLS (L30, S30) scenes over the point with their cloud cover, and in the US the NAIP aerial photographs (USDA, ~0.6 m) with state and date; tap to show the scene with Planetary Computer's own "Natural color" render. |
@@ -264,6 +269,7 @@ carry the attributions. The code's MIT licence does not cover the data.
 | [CelesTrak](https://celestrak.org) (T.S. Kelso) | orbital elements (GP data) | Free. CelesTrak asks clients to download each group **no more than once every 2 hours**; the server caches each group for 2 h 2 min and keeps the cache when CelesTrak says the data has not changed. |
 | [NASA GIBS / EOSDIS](https://nasa-gibs.github.io/gibs-api-docs/) | imagery, science layers, GOES/Himawari frames, fires | NASA data, no restrictions on use. Acknowledgement: "We acknowledge the use of imagery provided by services from NASA's Global Imagery Browse Services (GIBS), part of NASA's Earth Science Data and Information System (ESDIS)." |
 | [USGS earthquake feeds](https://earthquake.usgs.gov/earthquakes/feed/) | earthquakes | Public domain (U.S. Geological Survey). |
+| [NASA FIRMS](https://www.earthdata.nasa.gov/data/tools/firms) public 24-hour CSVs (VIIRS 375 m, Suomi NPP / NOAA-20 / NOAA-21) | active-fire points | NASA data, free and open; no key for these files. Acknowledgement: "We acknowledge the use of data and/or imagery from NASA's Fire Information for Resource Management System (FIRMS) (https://www.earthdata.nasa.gov/data/tools/firms), part of NASA's Earth Science Data and Information System (ESDIS)." Near-real-time detections, not validated; the server fetches each file at most once every 45 minutes. |
 | [ASF DAAC](https://asf.alaska.edu) SearchAPI | NISAR footprints and browse images | NASA data, free and open. Cite "ASF DAAC 2026, contains modified NISAR data" (NASA/JPL-Caltech, ISRO). Products are provisional; downloads need a free NASA Earthdata login. |
 | [PO.DAAC Hydrocron](https://podaac.github.io/hydrocron/) | SWOT river and lake heights | NASA data, free and open (NASA/JPL, CNES). Values are provisional and are reprocessed under new version letters (CRID). |
 | [Microsoft Planetary Computer](https://planetarycomputer.microsoft.com) · Copernicus Sentinel-1 | radar search, tiles and analysis | "Contains modified Copernicus Sentinel data [2025–2026]" under the [Copernicus Sentinel data legal notice](https://sentinel.esa.int/documents/247904/690755/Sentinel_Data_Legal_Notice) (free, full and open). The RTC product (processed by Catalyst) is CC BY 4.0; access is under the [Planetary Computer terms of use](https://planetarycomputer.microsoft.com/terms), with anonymous short-lived tokens. |
@@ -305,6 +311,13 @@ Honest notes from building and testing it:
 - **Satellite positions** come from SGP4 and elements up to a day or two old: good to a few kilometres for most low-Earth
   orbiters, not for precision work. Some 3D models are stand-ins (Landsat 9 uses Landsat 8's; GRACE for GRACE-FO; a generic
   model for SMAP, SWOT, PACE, NISAR and Intelsat 40e), and all are drawn far larger than life so you can see them.
+- **Fire points are near-real-time detections.** A dot is a thermal anomaly in one ~375 m pixel (vegetation fires, but also
+  gas flares, volcanoes and industry); clouds and small or brief fires are missed. Only the newest 60,000 of the day's
+  detections are drawn (20,000 on phones and in low-memory mode).
+- **Sensor looks are colour filters.** *Thermal* maps the brightness of the picture to an ironbow palette; it is not a
+  temperature measurement.
+- **Gliding ships are estimates.** Between AIS reports a moving ship is drawn along its last course at its last speed, for at
+  most 12 s past the newest data and only for reports less than 2 minutes old; the card always shows the reported position.
 - **City lights** are the Black Marble 2016 composite or the latest nightly VIIRS pass, not a live picture.
 - **"Passes over me"** uses your browser's location, which browsers only allow on `https://` or `localhost`; elsewhere, type a place.
 - **No login.** See [Configuration](#configuration) before opening it to a network.
@@ -387,7 +400,7 @@ Yes. Satellites: add the NORAD id to `FLEET` in `server.py` and `static/js/sats.
 
 - **NISAR GCOV backscatter tiles** and **GUNW** interferograms, with a NASA Earthdata login.
 - **InSAR ground deformation** on demand through ASF HyP3 (Sentinel-1 pairs), with a NASA Earthdata login.
-- **FIRMS** fire detections as points (needs a free MAP_KEY).
+- **FIRMS archive** and MODIS / Landsat fire points beyond the last 24 hours (FIRMS API, needs a free MAP_KEY).
 - Copernicus Data Space / Sentinel Hub imagery (needs an account).
 - A sky view for Hubble, JWST and the Sun (SDO, SOHO).
 
@@ -432,6 +445,9 @@ If the project is useful to you, you can support it with a [donation](https://do
 
 Created by **[Sunny Chase](https://github.com/sunnychase)** in collaboration with **Claude** (Anthropic). Data from NASA, NOAA,
 USGS, ESA/Copernicus, CNES, ISRO and the other providers listed above; software and models as listed in [NOTICE.md](NOTICE.md).
+The ideas for smooth motion with horizon culling, the sensor looks, FIRMS fire points and pass predictions come from
+[gods-eye-view](https://github.com/bilawalsidhu/gods-eye-view) by Bilawal Sidhu and Sameh Khamis (Halfpixel), MIT licence;
+the code here was written for this project.
 
 ## License
 

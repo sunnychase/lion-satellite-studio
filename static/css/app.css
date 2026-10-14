@@ -344,3 +344,14 @@ body.drawing #globe { cursor: crosshair; }
   .maker { right: 8px; bottom: calc(94px + var(--sa-bot)); font-size: 9px; }
   .credits-line { right: 92px; }
 }
+/* sensor looks (HUD menu + panel), next passes, FIRMS legend */
+#btn-look.on { color: var(--gold2); border-color: var(--hair); background: rgba(217, 178, 95, 0.12); }
+.look-menu { position: fixed; top: calc(var(--hud-h) + var(--sa-top) + 6px); right: calc(14px + var(--sa-r)); z-index: 60; padding: 10px; display: flex; flex-direction: column; gap: 6px; width: 190px; }
+.look-list { display: flex; flex-direction: column; gap: 2px; }
+.look-list .seg-b { flex: none; text-align: left; padding: 0 10px; border-radius: 8px; border: 0 !important; height: 32px; }
+.look-seg .seg-b { font-size: 11px; padding: 0 2px; }
+.np-row .np-t { flex-basis: 100%; padding-left: 16px; }
+.fire-legend { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.fire-ramp { display: inline-block; width: 90px; height: 8px; border-radius: 4px; background: linear-gradient(90deg, #fff6b0, #ffd23f 12%, #ff8a1f 30%, #e0461f 55%, #8f2a17 85%, #5e1c10); }
+.fire-legend .fd { display: inline-block; border-radius: 50%; background: #ff8a1f; }
+@media (max-width: 699px) { .look-menu { right: 8px; } }
