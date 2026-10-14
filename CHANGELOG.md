@@ -2,6 +2,11 @@
 
 Updates to Lion Satellite Studio, newest first. The project has no version numbers; each entry is dated.
 
+## 2026-10-13 (video)
+
+- The product video carries the repository link (github.com/sunnychase/lion-satellite-studio) in the lower-right corner for its whole length,
+  not only on the end card.
+
 ## 2026-10-13 — Golden Gate gallery
 
 - README: a *Golden Gate gallery* of seven app screenshots of the Golden Gate Bridge (37.8199, −122.4783), with date, sensor,
