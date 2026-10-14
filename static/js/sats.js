@@ -69,6 +69,7 @@ function classify(o) {
   return 'MEO';
 }
 
+const yieldTask = () => new Promise(r => setTimeout(r, 0));
 async function loadGroup(g) {
   if (st.groupData[g]) return;
   const r = await getJSON(`/api/sats?group=${encodeURIComponent(g)}`);
@@ -82,12 +83,13 @@ export async function refreshGroups() {
   const errs = [];
   await Promise.all(want.map(g => loadGroup(g).catch(e => { errs.push(`${g}: ${e.message}`); })));
   if (errs.length) toast(`Satellite data unavailable (${errs.join('; ')}) — retrying in a few minutes`, 6000);
-  rebuild();
+  await yieldTask();
+  await rebuild();
   store.set('groups', want);
   App.events.dispatchEvent(new Event('satgroups'));
 }
 
-function rebuild() {
+async function rebuild() {
   const merged = new Map();
   for (const g of st.enabled) {
     for (const o of st.groupData[g] || []) {
@@ -101,14 +103,15 @@ function rebuild() {
       if (Date.parse(o.EPOCH + 'Z') > Date.parse(s.omm.EPOCH + 'Z')) s.omm = o;
     }
   }
-  st.sats = [...merged.values()];
-  st.byNorad = merged;
-  for (const s of st.sats) {
+  const sats = [...merged.values()];
+  for (const s of sats) {
     const f = FLEET[s.norad];
     s.fleet = !!f;
     s.color = f ? f[0] : (GROUPS.find(g => s.groups.has(g.id) && g.id !== 'fleet') || GROUPS[0]).color;
     s.short = f ? f[1] : s.name;
   }
+  await yieldTask();
+  st.sats = sats; st.byNorad = merged;
   buildPrimitives();
   st.seq++;
   st.worker.postMessage({ type: 'load', sats: st.sats.map(s => s.omm), seq: st.seq });
@@ -171,6 +174,7 @@ export function updateRenderMode() {
 }
 function step() {
   if (!st.worker || st.busy || !st.sats.length) return;
+  if (App.pointerDown && st.speed <= 1) return; // keep the main thread for the drag; resumes on release
   st.busy = true;
   st.postT = performance.now();
   st.worker.postMessage({ type: 'prop', t: now(), seq: st.seq });
@@ -418,7 +422,7 @@ function manageModels() {
     if (d < 2.0e6 || (st.selected === s && d < 6.0e6 && s.cls !== 'LEO')) near.push([d, s]);
   });
   near.sort((a, b) => a[0] - b[0]);
-  const keep = new Set(near.slice(0, App.lowPower ? 1 : 3).map(x => x[1].norad));
+  const keep = new Set(near.slice(0, App.lowMem ? 0 : App.lowPower ? 1 : 3).map(x => x[1].norad));
   for (const [norad, ent] of st.models) {
     if (!keep.has(norad)) { v.entities.remove(ent); st.models.delete(norad); const s = findSat(norad); if (s) s.pt.show = true; }
   }

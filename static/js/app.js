@@ -34,8 +34,12 @@ function makeViewer() {
   // Cesium defaults: below ~10,000 km everything is lit (readable close-ups); the night side darkens from 20,000 km out
   s.globe.lightingFadeOutDistance = 1.0e7; s.globe.lightingFadeInDistance = 2.0e7;
   s.globe.nightFadeOutDistance = 1.0e7; s.globe.nightFadeInDistance = 5.0e7;
-  s.globe.maximumScreenSpaceError = phone ? 2.5 : 1.75;
-  s.globe.tileCacheSize = phone ? 120 : 250;
+  s.globe.maximumScreenSpaceError = phone ? 2.5 : 2.0;
+  s.globe.tileCacheSize = phone ? 100 : 160;
+  // graphics problems: our own note instead of Cesium's error panel; a lost WebGL context reloads in low-memory mode
+  v.showRenderLoopErrors = false;
+  s.renderError.addEventListener((sc, err) => { console.error('render error', err); graphicsReset('error'); });
+  s.canvas.addEventListener('webglcontextlost', e => { e.preventDefault(); graphicsReset('lost'); }, false);
   s.skyAtmosphere.show = true;
   s.fog.enabled = true;
   s.highDynamicRange = false;
@@ -73,6 +77,64 @@ function globalView(lon, lat, duration, extra = {}) {
   const offset = new C.HeadingPitchRange(0, C.Math.toRadians(-80), App.isPhone() ? 2.55e7 : 1.95e7);
   if (!duration) { cam.flyToBoundingSphere(target, { offset, duration: 0 }); return; }
   cam.flyToBoundingSphere(target, { offset, duration, easingFunction: C.EasingFunction.QUADRATIC_IN_OUT, ...extra });
+}
+
+// ================================================================ software WebGL (any browser, no settings needed)
+// A context that must not have a "major performance caveat" cannot be created when the browser draws WebGL in software
+// (blocklisted driver, no GPU, remote desktop). Then the app starts in low-memory mode and says so once.
+function softwareWebGL() {
+  try {
+    const cv = document.createElement('canvas');
+    const gl = cv.getContext('webgl2', { failIfMajorPerformanceCaveat: true }) || cv.getContext('webgl', { failIfMajorPerformanceCaveat: true });
+    if (!gl) return true;
+    // a software rasteriser named in the renderer string (SwiftShader, llvmpipe, softpipe, Microsoft Basic Render)
+    const dbg = gl.getExtension('WEBGL_debug_renderer_info');
+    const name = String(gl.getParameter(dbg ? dbg.UNMASKED_RENDERER_WEBGL : gl.RENDERER) || '');
+    const x = gl.getExtension('WEBGL_lose_context'); if (x) x.loseContext();
+    return /swiftshader|llvmpipe|softpipe|software|basic render/i.test(name);
+  } catch (e) { return false; }
+}
+
+// ================================================================ memory: low-memory mode + graphics resets
+// Low-memory mode is for busy or small GPUs (or a machine whose memory is shared with other big jobs): fewer footprints and
+// ships, no 3D models, no 3D terrain or hi-res backdrop, larger tile error and a small tile cache. It switches on by
+// itself after a graphics reset or when frames stay slow, and from the toggle in Imagery & terrain.
+App.lowMem = store.get('lowmem', false);
+App.softGL = softwareWebGL();
+if (App.softGL && !App.lowMem) { App.lowMem = true; store.set('lowmem', true); App.softNotice = true; }
+function applyMemMode() {
+  const s = App.scene, phone = App.isPhone(), on = App.lowMem;
+  s.globe.maximumScreenSpaceError = on ? (App.softGL ? 4 : 3) : phone ? 2.5 : 2.0;
+  s.globe.tileCacheSize = on ? 60 : phone ? 100 : 160;
+  App.viewer.resolutionScale = on ? (App.softGL ? 0.6 : 0.85) : 1;   // software WebGL: far fewer pixels to draw
+  if (on) { if (App.layers.hires) IM.setHires(false); if (App.layers.terrain) { App.layers.terrain = false; IM.applyTerrain(); } }
+  D.redrawHeavy();
+  requestRender();
+}
+App.setLowMem = function (on, why) {
+  if (App.lowMem === !!on) return;
+  App.lowMem = !!on; store.set('lowmem', App.lowMem);
+  applyMemMode();
+  const t = $('#lowmem-toggle input'); if (t) t.checked = App.lowMem;
+  if (on && why) toast(`Low-memory mode on (${why}). Turn it off under Imagery & terrain.`, 6000);
+};
+let resets = 0;
+function graphicsReset(kind) {
+  resets++;
+  let n = $('#gfx-note');
+  if (!n) { n = el('div', { id: 'gfx-note', class: 'glass gfx-note' }); document.body.append(n); }
+  if (!App.lowMem) { App.lowMem = true; store.set('lowmem', true); }
+  if (kind === 'lost') {
+    n.replaceChildren(el('b', {}, 'Graphics reset'), el('span', {}, ' — the browser dropped the 3D view (short of graphics memory). Reloading the layers in low-memory mode …'));
+    n.classList.remove('hidden');
+    setTimeout(() => location.reload(), 2500);   // the view is in the URL, so the reload comes back to it
+    return;
+  }
+  n.replaceChildren(el('b', {}, 'Graphics hiccup'), el('span', {}, ' — the 3D view stopped on an error; resuming in low-memory mode. '),
+    el('button', { class: 'btn small', onclick: () => location.reload() }, 'Reload'), el('button', { class: 'btn small ghost', onclick: () => n.classList.add('hidden') }, 'Hide'));
+  n.classList.remove('hidden');
+  applyMemMode();
+  if (resets <= 3) setTimeout(() => { App.viewer.useDefaultRenderLoop = true; requestRender(); }, 1000);
 }
 
 // ================================================================ camera manager
@@ -131,9 +193,10 @@ App.pulse = (ms) => {
 function watchInput(canvas) {
   let down = null;
   const mark = () => { App.lastUserInput = Date.now(); stopIdle(); };
-  canvas.addEventListener('pointerdown', e => { down = { x: e.clientX, y: e.clientY }; App.lastAny = Date.now(); stopIdle(); }, { passive: true });
+  canvas.addEventListener('pointerdown', e => { down = { x: e.clientX, y: e.clientY }; App.pointerDown = true; App.lastAny = Date.now(); stopIdle(); }, { passive: true });
   canvas.addEventListener('pointermove', e => { if (down && Math.hypot(e.clientX - down.x, e.clientY - down.y) > 6) mark(); }, { passive: true });
-  window.addEventListener('pointerup', () => { down = null; }, { passive: true });
+  window.addEventListener('pointerup', () => { down = null; App.pointerDown = false; }, { passive: true });
+  window.addEventListener('pointercancel', () => { down = null; App.pointerDown = false; }, { passive: true });
   canvas.addEventListener('wheel', mark, { passive: true });
   canvas.addEventListener('touchmove', e => { if (e.touches.length > 1) mark(); }, { passive: true });
   ['keydown', 'pointerdown', 'wheel', 'touchstart'].forEach(ev => window.addEventListener(ev, () => { App.lastAny = Date.now(); stopIdle(); }, { passive: true }));
@@ -239,9 +302,12 @@ function setupPicking() {
   }, C.ScreenSpaceEventType.LEFT_DOUBLE_CLICK);
   const tip = $('#tooltip');
   let last = 0, lastKey = null;
+  // hover picking renders a pick pass (readPixels): skip it while the user drags or the camera moves, and at most ~8 per second
+  v.camera.moveStart.addEventListener(() => { App.camMoving = true; });
+  v.camera.moveEnd.addEventListener(() => { App.camMoving = false; });
   handler.setInputAction(e => {
     const now = performance.now();
-    if (now - last < 70) return;
+    if (App.pointerDown || App.camMoving || now - last < 120) return;
     last = now;
     const p = resolve(s.pick(e.endPosition, 5, 5));
     const key = p ? p.kind + ':' + (p.norad ?? p.id) : null;
@@ -321,6 +387,7 @@ function setupSearch() {
     const c0 = !pc && App.findPlace(q);
     if (c0) items.push({ k: 'point', t: `What sees ${c0.name}?`, s: 'point report', go: () => PT.lookup(c0.lat, c0.lon, { name: c0.name }) });
     items = items.slice(0, 14);
+    if (!pc && q.length >= 3) items.push({ k: 'address', t: `Search “${q}” as an address`, s: 'OpenStreetMap · Enter', go: () => PT.addressSearch(q) });
     focus = -1;
     box.replaceChildren(...(items.length ? items.map((it, i) => el('button', { class: 'res', role: 'option', onclick: () => pick(i) }, el('span', { class: 'k' }, it.k), el('span', {}, it.t), el('span', { class: 's' }, it.s))) : [el('div', { class: 'empty' }, 'No match in loaded satellites, SWOT list or the built-in gazetteer.')]));
     box.hidden = false;
@@ -558,8 +625,16 @@ function setupButtons() {
   $('#btn-ticker').onclick = () => { document.body.classList.toggle('no-ticker'); store.set('ticker', !document.body.classList.contains('no-ticker')); };
   if (store.get('ticker', true) === false) document.body.classList.add('no-ticker');
   $('#credits-line').onclick = () => { $('#about').classList.remove('hidden'); $('#credits-anchor')?.scrollIntoView(); };
+  // any control in the panel: repaint the panel after the work it starts (some GPU compositors dropped its tiles)
+  const nudgeAfterChange = () => { for (const ms of [30, 700, 2000]) setTimeout(repaintPanel, ms); };
+  $('#panel').addEventListener('change', nudgeAfterChange);
+  App.events.addEventListener('satgroups', nudgeAfterChange);
   App.viewer.camera.moveEnd.addEventListener(saveHash);
-  App.events.addEventListener('layers', () => { saveHash(); highlightActive(); updateCreditsLine(); });
+  App.events.addEventListener('layers', () => { saveHash(); highlightActive(); updateCreditsLine(); repaintPanel(); });
+}
+function repaintPanel() {
+  const p = $('#panel'); if (!p) return;
+  requestAnimationFrame(() => p.classList.toggle('rp'));   // background flips by 1/255: the panel is re-rastered
 }
 function attributionLine() {
   const parts = ['Imagery NASA GIBS/EOSDIS'];
@@ -753,7 +828,9 @@ function coach() {
       el('div', { class: 'dots' }, steps.map((_, k) => el('i', { class: k === i ? 'on' : '' }))),
       el('div', { class: 'row', style: { justifyContent: 'center' } }, el('button', { class: 'btn ghost small', onclick: done }, 'Skip'), el('button', { class: 'btn gold small', onclick: () => { i++; i < steps.length ? draw() : done(); } }, i < steps.length - 1 ? 'Next' : 'Start exploring'))));
   };
-  const done = () => { box.classList.add('hidden'); store.set('coachDone', true); };
+  const away = e => { if (!e.target.closest || !e.target.closest('.cbox')) done(); };
+  const done = () => { box.classList.add('hidden'); store.set('coachDone', true); window.removeEventListener('pointerdown', away, true); };
+  window.addEventListener('pointerdown', away, true);
   box.classList.remove('hidden');
   draw();
 }
@@ -779,6 +856,7 @@ function buildAbout(status) {
   <li><b>NISAR</b> — NASA/JPL-Caltech and ISRO; data via the Alaska Satellite Facility DAAC (ASF SearchAPI). NASA data are free and open; cite “ASF DAAC 2026, contains modified NISAR data”.</li>
   <li><b>SWOT</b> — NASA/JPL and CNES; Hydrocron time series via NASA PO.DAAC.</li>
   <li><b>Sentinel-1</b> — “Contains modified Copernicus Sentinel data [2025–2026]”, used under the <a href="https://sentinel.esa.int/documents/247904/690755/Sentinel_Data_Legal_Notice" target="_blank" rel="noopener">Copernicus Sentinel data legal notice</a> (free, full and open). The radiometrically terrain corrected (RTC) γ⁰ product is processed by Catalyst and published on <b>Microsoft Planetary Computer</b> under <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>; search, tiles and data are used under the <a href="https://planetarycomputer.microsoft.com/terms" target="_blank" rel="noopener">Planetary Computer terms of use</a>. Data are read with anonymous, short-lived SAS tokens (no subscription key; PC rate-limits anonymous use; its RTC docs say an account may be required, so the analysis disables itself if tokens are refused). False-colour render adapted from Sentinel Hub custom scripts (CC BY 4.0), as documented by PC. Analyses are automatic estimates, not validated.</li>
+  <li><b>Address search</b> — © <b>OpenStreetMap contributors</b>, ODbL; search by Nominatim (nominatim.openstreetmap.org) through this server, only when you press Enter, cached 30 days, at most 1 request per second. Please don’t search for private addresses you would not share: queries are sent to the OpenStreetMap Foundation (see its privacy policy).</li>
   <li><b>Point report data</b> — <b>Sentinel-2 L2A</b>: “Contains modified Copernicus Sentinel data [2025–2026]” (Copernicus Sentinel data legal notice); <b>Landsat Collection 2 Level-2</b>: courtesy of the U.S. Geological Survey, public domain; <b>HLS v2.0</b> (L30/S30): NASA LP DAAC, free and open; all via Microsoft Planetary Computer (STAC point search and the tiler, under its terms of use). <b>SWOT reaches near a point</b>: SWOT_L2_HR_RiverSP reach (version D) feature service on NASA Earthdata GIS (NASA/JPL, CNES), keyless. NISAR point search: ASF SearchAPI. Pass and swath geometry are computed in your browser.</li>
   <li><b>ESA WorldCover 2021 v200</b> (ship-detection land mask, read server-side from Planetary Computer) — “© ESA WorldCover project 2021 / Contains modified Copernicus Sentinel data (2021) processed by ESA WorldCover consortium”, CC BY 4.0.</li>
   <li><b>3D models</b> — NASA 3D Resources (free to use; NASA Images and Media Usage Guidelines): ISS (NASA/Michael D. Carbajal), Terra (NASA/Christian A. Lopez), Aqua, Landsat 8 (also used for Landsat 9), GPM, ICESat-2, OCO-2, GOES (NASA/Christopher R. Meaney), Suomi NPP (NASA/Brian E. Kumanchik, Christian A. Lopez; also used for NOAA-20/21), GRACE (NASA/Christopher M. Garcia; stand-in for GRACE-FO). Generic model for SMAP, SWOT, PACE, NISAR and IS-40E.</li>
@@ -824,6 +902,7 @@ function perfLine() {
 }
 function degrade() {
   App.lowPower = true;
+  if (!App.lowMem) App.setLowMem(true, 'slow frames');
   const g = App.scene.globe;
   g.maximumScreenSpaceError = Math.min(4, g.maximumScreenSpaceError + 1.5);
   App.scene.postProcessStages.fxaa.enabled = false;
@@ -832,8 +911,16 @@ function degrade() {
 }
 
 // ================================================================ boot
+function noWebGL(err) {
+  console.error(err);
+  $('#panel')?.classList.add('hidden');
+  document.body.append(el('div', { class: 'nogl glass' }, el('h2', {}, 'This browser can’t draw the 3D globe here'),
+    el('p', {}, 'Lion Satellite Studio needs WebGL, and this browser did not provide it (it may be switched off, blocked for this graphics driver, or unavailable in a remote or virtual session).'),
+    el('p', {}, 'Try a current Firefox, Chrome, Edge or Safari on this device, or switch the browser’s hardware acceleration back on, then reload.'),
+    el('button', { class: 'btn gold', onclick: () => location.reload() }, 'Reload')));
+}
 async function boot() {
-  makeViewer();
+  try { makeViewer(); } catch (e) { noWebGL(e); return; }
   watchInput(App.scene.canvas);
   buildPanel();
   setupSheet();
@@ -852,6 +939,9 @@ async function boot() {
   loadGazetteer();
   await IM.initImagery(App.viewer);
   IM.buildUI({ imagery: secBodies.imagery, nrt: secBodies.nrt, science: secBodies.science, overlays: secBodies.overlays });
+  { const t = IM.toggle('Low-memory mode (busy or small GPUs): fewer footprints, no 3D models, terrain or hi-res backdrop', App.lowMem, v => App.setLowMem(v)); t.id = 'lowmem-toggle'; secBodies.imagery.append(t); }
+  if (App.lowMem) applyMemMode();
+  if (App.softNotice) setTimeout(() => toast('This browser draws 3D in software here, so a lighter view is on (Low-memory mode, under Imagery & terrain).', 8000), 4000);
   await D.initSwot();
   D.buildSwotUI(secBodies.swot);
   D.buildQuakeUI(secBodies.quakes);
@@ -871,7 +961,12 @@ async function boot() {
   await satsP;
   if (!restored && !App.introRunning) coach(); else setTimeout(() => { if (!store.get('coachDone')) coach(); }, 4500);
   if (App.isPhone()) togglePanel(false);
-  setInterval(async () => { try { const s = (await getJSON('/api/status')).body; App.serverStatus = s; } catch (e) { /* ignore */ } }, 60e3);
+  App.clientVersion = status && status.client_version;
+  setInterval(async () => { try { const s = (await getJSON('/api/status')).body; App.serverStatus = s;
+    if (App.clientVersion && s.client_version && s.client_version !== App.clientVersion && !$('#update-note')) {
+      document.body.append(el('div', { id: 'update-note', class: 'glass gfx-note' }, el('b', {}, 'Updated'), el('span', {}, ' — a newer version of the page is on the server.'),
+        el('button', { class: 'btn small gold', onclick: () => location.reload() }, 'Reload'), el('button', { class: 'btn small ghost', onclick: e => e.target.closest('#update-note').remove() }, 'Later')));
+    } } catch (e) { /* ignore */ } }, 60e3);
   App.ready = true;
   requestRender();
 }

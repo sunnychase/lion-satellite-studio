@@ -35,11 +35,10 @@ svg { stroke: currentColor; fill: none; stroke-width: 1.7; stroke-linecap: round
 .cesium-widget-credits { display: none !important; }
 .cesium-viewer .cesium-widget canvas { outline: none; }
 
-/* glass */
-.glass { background: var(--glass); border: 1px solid var(--hair); border-radius: var(--r); box-shadow: var(--shadow);
-  -webkit-backdrop-filter: blur(16px) saturate(140%); backdrop-filter: blur(16px) saturate(140%); }
-.glass-bar { background: linear-gradient(180deg, rgba(10, 11, 13, 0.86), rgba(10, 11, 13, 0.62)); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); }
-@supports not ((backdrop-filter: blur(4px)) or (-webkit-backdrop-filter: blur(4px))) { .glass, .glass-bar { background: var(--glass-strong); } }
+/* glass: no backdrop-filter — a blur over the constantly re-rendering WebGL canvas made Chrome drop panel paints */
+.glass { background: rgba(14, 16, 20, 0.92); border: 1px solid var(--hair); border-radius: var(--r); box-shadow: var(--shadow); }
+.glass-bar { background: linear-gradient(180deg, rgba(10, 11, 13, 0.94), rgba(10, 11, 13, 0.84)); }
+#panel { background: rgb(14, 16, 20); box-shadow: none; }
 
 /* HUD */
 #hud { position: fixed; top: 0; left: 0; right: 0; height: calc(var(--hud-h) + var(--sa-top)); padding: var(--sa-top) calc(14px + var(--sa-r)) 0 calc(14px + var(--sa-l));
@@ -65,7 +64,7 @@ svg { stroke: currentColor; fill: none; stroke-width: 1.7; stroke-linecap: round
 
 /* panel */
 #panel { position: fixed; top: calc(var(--hud-h) + var(--sa-top) + 12px); left: calc(12px + var(--sa-l)); bottom: calc(var(--ticker-h) + 12px + var(--sa-bot)); width: var(--panel-w);
-  display: flex; flex-direction: column; z-index: 20; transition: transform .28s cubic-bezier(.2, .8, .2, 1), opacity .28s; overflow: hidden; }
+  display: flex; flex-direction: column; z-index: 20; }
 #panel.collapsed { transform: translateX(calc(-100% - 24px)); opacity: 0; pointer-events: none; }
 #panel-open { position: fixed; top: calc(var(--hud-h) + var(--sa-top) + 12px); left: calc(12px + var(--sa-l)); z-index: 19; width: 42px; height: 42px; }
 .sheet-handle { display: none; }
@@ -89,8 +88,8 @@ svg { stroke: currentColor; fill: none; stroke-width: 1.7; stroke-linecap: round
 .sec > summary::after { content: ''; width: 7px; height: 7px; border-right: 1.5px solid var(--muted); border-bottom: 1.5px solid var(--muted); transform: rotate(-45deg); transition: transform .25s; margin-left: 6px; }
 .sec[open] > summary::after { transform: rotate(45deg); }
 .sec.active-src > summary { color: var(--gold2); }
-.sec.active-src > summary .fam { animation: glow 2.4s ease-in-out infinite; }
-.sec-body { padding: 2px 6px 14px; display: flex; flex-direction: column; gap: 8px; animation: fadein .25s ease; }
+.sec.active-src > summary .fam { box-shadow: 0 0 6px currentColor; }
+.sec-body { padding: 2px 6px 14px; display: flex; flex-direction: column; gap: 8px; animation: none; } /* no fade: it promoted the panel to a layer */
 @keyframes fadein { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
 @keyframes glow { 50% { box-shadow: 0 0 2px currentColor; } }
 .hint { font-size: 12px; color: var(--muted); line-height: 1.45; }
@@ -242,8 +241,8 @@ body.no-ticker { --ticker-h: 0px; } body.no-ticker .ticker { display: none; }
 .tooltip b { color: var(--gold2); font-weight: 600; } .tooltip .sub { color: var(--muted); font-size: 11px; }
 .toast { position: fixed; left: 50%; bottom: calc(var(--ticker-h) + 70px + var(--sa-bot)); transform: translate(-50%, 20px); opacity: 0; z-index: 60; background: rgba(16, 16, 18, .94); border: 1px solid var(--hair); border-radius: 12px; padding: 10px 16px; font-size: 13px; transition: all .3s; pointer-events: none; max-width: calc(100vw - 40px); text-align: center; }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
-.coach { position: fixed; inset: 0; z-index: 70; background: radial-gradient(circle at 50% 50%, rgba(0, 0, 0, .15), rgba(0, 0, 0, .65)); display: grid; place-items: center; animation: fadein .4s; }
-.coach .cbox { max-width: 360px; padding: 22px 22px 16px; text-align: center; }
+.coach { position: fixed; inset: 0; z-index: 15; pointer-events: none; background: radial-gradient(circle at 50% 50%, rgba(0, 0, 0, .15), rgba(0, 0, 0, .65)); display: grid; place-items: center; animation: fadein .4s; }
+.coach .cbox { pointer-events: auto; max-width: 360px; padding: 22px 22px 16px; text-align: center; }
 .coach .cbox .big { font-size: 34px; margin-bottom: 6px; }
 .coach .cbox h3 { margin: 4px 0 6px; font-size: 17px; }
 .coach .cbox p { margin: 0 0 14px; color: var(--ink2); line-height: 1.5; font-size: 13.5px; }
@@ -319,6 +318,11 @@ body.drawing #globe { cursor: crosshair; }
   .ticker .track { animation: none; padding-left: 12px; overflow-x: auto; }
 }
 
+.gfx-note { position: fixed; top: calc(var(--hud-h) + var(--sa-top) + 12px); left: 50%; transform: translateX(-50%); z-index: 70; padding: 10px 14px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; max-width: min(640px, calc(100vw - 24px)); font-size: 13px; }
+#panel.rp { background: rgb(15, 16, 20); }
+.nogl { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 80; max-width: min(520px, calc(100vw - 32px)); padding: 20px 22px; text-align: center; }
+.nogl h2 { margin: 0 0 8px; font-size: 18px; } .nogl p { color: var(--ink2); font-size: 13.5px; line-height: 1.5; }
+.cesium-widget-errorPanel { display: none !important; } /* the app shows its own notice */
 /* point report */
 .pt-head { display: flex; flex-direction: column; gap: 4px; }
 .pt-actions { flex-wrap: wrap; gap: 6px; margin-top: 4px; }

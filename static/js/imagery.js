@@ -467,7 +467,7 @@ function radioNone(name, text, onpick) {
 }
 export function toggle(text, on, onchange, fam = 'gold', disabled = false) {
   const inp = el('input', { type: 'checkbox', checked: on, disabled });
-  inp.addEventListener('change', () => onchange(inp.checked));
+  inp.addEventListener('change', () => setTimeout(() => onchange(inp.checked), 0));
   return el('label', { class: 'switch' + (disabled ? ' disabled' : ''), 'data-fam': fam }, inp, el('span', { class: 'knob' }), el('span', { class: 'sw-t' }, text));
 }
 

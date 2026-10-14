@@ -2,6 +2,56 @@
 
 Updates to Lion Satellite Studio, newest first. The project has no version numbers; each entry is dated.
 
+## 2026-10-13 — Performance, a panel that stays painted, address search
+
+**Performance** (measured in GPU Chromium on a DGX Spark, phone emulation 390×844 with a 4× CPU slowdown, against the running
+app with live AIS; a scripted 10-minute session: home → Explore tour → NISAR 7 days and "all" → ships → All active satellites →
+Sentinel-1 radar → Point report → home, twice):
+
+| | before | after |
+|---|---|---|
+| Ships on: longest main-thread task | 4,982 ms (16 s of long tasks) | 71 ms |
+| All active satellites (~16,700) on top: longest task | 6,485 ms, then the page stopped responding to input for > 3 minutes | 148–160 ms |
+| Rotate / zoom / hover with All active, phone emulation | not reachable (page hung) | 59 fps, 95th-percentile frame 20 ms |
+| NISAR "all" (16,835 footprints): longest task | 101 ms | 87 ms (newest 6,000 drawn) |
+| JS heap after warm-up, cycle 1 → cycle 2 | not reachable | 79.1 → 83.9 MB (+6 %) |
+| Renderer memory with NISAR "all" on (desktop) | 1,108 MB, JS heap 43 MB | 866 MB, JS heap 34 MB |
+| Console errors over the session | — | 0 |
+
+- **The hang:** every ship billboard was given a canvas image, and Cesium files a canvas under a *new* atlas id every time, so
+  each ship re-packed the texture atlas (quadratic `_findNode`) and the atlas grew on every 12 s refresh. Ship, dark-vessel and
+  radar-detection symbols are now data-URL strings: one atlas entry per symbol.
+- Ships reload once the camera has settled, not on every move; hover picking (a pick render pass) is skipped while the user drags
+  or the camera moves; the 1 Hz satellite update waits while the user drags; the "All active" load is split across tasks.
+- **Memory:** NISAR draws the newest 6,000 footprints (outlines for the newest 2,000) with coarser tessellation; smaller tile cache
+  (160, phone 100) and a slightly larger terrain tile error (2.0).
+- **Low-memory mode** (toggle in *Imagery & terrain*; switches on by itself after a graphics reset, when frames stay slow, or when
+  the browser draws WebGL in software): 2,000 footprints and ships, no 3D models, no terrain or hi-res backdrop, a 60-tile cache,
+  a lower resolution scale.
+- **Graphics resets:** a lost WebGL context reloads the view in low-memory mode with a short note; a render error resumes the
+  globe instead of leaving Cesium's error panel; a browser without WebGL gets a clear notice instead of an empty page.
+- Remaining: the first 3D model on screen compiles its shaders once (about 0.65 s on the desktop run); the first Cesium start-up
+  task is 226 ms with the 4× slowdown.
+
+**A panel that stays painted:** in a desktop browser on a DGX Spark (Firefox), the left panel sometimes went blank
+(an empty bordered box) after a switch was used. Its DOM, opacity and position were always intact and nothing covered it (checked
+with elementFromPoint over all 70 controls), so the browser dropped the panel's painted content. The panel is now a plain layer:
+no backdrop-filter blur, no transition, no rounded overflow clip over the scroller, no fade animation, no infinite glow animation,
+no containment, a solid background; switch work starts in the next task; and the panel is repainted after every change. An open
+tab offers *Reload* when the page files change on the server. The first-visit tips no longer cover the panel or block clicks.
+
+**Tested in:** Chromium with GPU WebGL and WebKit, each at 1440×900 and 390×844, and Chromium with SwiftShader software WebGL
+at 1440×900, clicking all 70 panel controls plus address search and the Point report: the panel stayed visible after every
+click, with 0 console errors in Chromium.
+A software-WebGL browser is detected (by its renderer name) and starts in low-memory mode with a one-line notice. Headless Firefox
+on this machine has no WebGL at all; it gets the "no 3D graphics" notice with the panel still working.
+
+**Address search:** type a street address, landmark or city in the search bar or the Point report box and press Enter. It goes
+through the server to OpenStreetMap Nominatim within its usage policy (on Enter only, never autocomplete; at most one request per
+second for the whole server; identifying User-Agent; 30-day cache keyed on the normalised query; "© OpenStreetMap contributors,
+ODbL" with the results). Coordinates, degrees-minutes-seconds and the built-in gazetteer are tried first, locally. New settings
+`LSS_GEOCODER` and `LSS_GEOCODER_URL`.
+
 ## 2026-10-13 (video)
 
 - The product video carries the repository link (github.com/sunnychase/lion-satellite-studio) in the lower-right corner for its whole length,

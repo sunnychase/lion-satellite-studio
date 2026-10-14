@@ -16,6 +16,7 @@ Upstreams (all keyless unless noted):
   PO.DAAC Hydrocron      cache 12 h per whitelisted feature, one request at a time
   aisstream.io (KEY)     one websocket, only if AISSTREAM_API_KEY is present in keys.env
   Global Fishing Watch (TOKEN) SAR detections, cache 6 h, only if GFW_API_TOKEN is present
+  OpenStreetMap Nominatim (address search): on Enter only, <= 1 request/s for the whole server, cached 30 days
   Point lookup (/api/point/*): PC STAC point search (S1/S2/Landsat/HLS), ASF NISAR intersectsWith,
                          NASA Earthdata GIS SWOT reaches; cache 1 h; one new point per client every 3 s
 
@@ -1752,6 +1753,61 @@ def opt_tile(coll, item, z, x, y):
     return body, "miss"
 
 
+# --------------------------------------------------------------------------- address search (OpenStreetMap Nominatim)
+# Policy (operations.osmfoundation.org/policies/nominatim): searches only when the user presses Enter (no autocomplete),
+# at most 1 request per second for the WHOLE server (one global lock + spacing), an identifying User-Agent, results cached
+# (30 days on disk, keyed on the normalised query), attribution shown with the results, and the service can be switched or
+# turned off in configuration without a software update (LSS_GEOCODER_URL, LSS_GEOCODER=0).
+GEOCODER_URL = os.environ.get("LSS_GEOCODER_URL") or "https://nominatim.openstreetmap.org/search"
+GEOCODER_ON = os.environ.get("LSS_GEOCODER", "1") != "0" and GEOCODER_URL.startswith("https://")
+GEO_DIR = os.path.join(CACHE, "geocode")
+GEO_TTL = 30 * 86400
+GEO_LOCK = threading.Lock()
+GEO_STATE = {"last": 0.0, "waiting": 0}
+GEO_ATTRIB = "© OpenStreetMap contributors, ODbL (search by Nominatim)"
+
+
+def geocode_query(q):
+    """q: the user's text (validated by the caller). Returns (gz, meta)."""
+    norm = " ".join(q.lower().split())
+    path = os.path.join(GEO_DIR, hashlib.sha1(norm.encode()).hexdigest()[:24] + ".json.gz")
+
+    def fetch():
+        with GEO_STATE_LOCK:
+            if GEO_STATE["waiting"] >= 4:
+                raise Unavailable("address search is busy, try again in a few seconds", 3)
+            GEO_STATE["waiting"] += 1
+        try:
+            with GEO_LOCK:  # one request at a time across the whole server, spaced >= 1.1 s apart
+                gap = 1.1 - (time.time() - GEO_STATE["last"])
+                if gap > 0:
+                    time.sleep(gap)
+                try:
+                    url = GEOCODER_URL + "?" + urllib.parse.urlencode({"q": norm, "format": "jsonv2", "limit": "5"})
+                    _, raw, _ = http_get(url, timeout=20, max_bytes=2 * 2**20, source="nominatim")
+                finally:
+                    GEO_STATE["last"] = time.time()
+        finally:
+            with GEO_STATE_LOCK:
+                GEO_STATE["waiting"] -= 1
+        res = []
+        for r in json.loads(raw)[:5]:
+            try:
+                lat, lon = latlon_param(r.get("lat"), r.get("lon"))
+            except Exception:
+                continue
+            bb = r.get("boundingbox") or []
+            res.append({"name": (r.get("name") or "")[:120], "label": (r.get("display_name") or "")[:240], "lat": lat, "lon": lon,
+                        "category": (r.get("category") or "")[:40], "type": (r.get("type") or "")[:40],
+                        "bbox": [float(x) for x in bb][:4] if len(bb) == 4 else None})
+        return json.dumps({"q": norm, "results": res, "attribution": GEO_ATTRIB, "fetched": iso(time.time())},
+                          separators=(",", ":")).encode()
+    return Cached("geocode:" + norm[:40], path, GEO_TTL, fetch, err_backoff=30, source="nominatim").get()
+
+
+GEO_STATE_LOCK = threading.Lock()
+
+
 # --------------------------------------------------------------------------- HTTP handler
 CTYPES = {
     ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8",
@@ -2025,6 +2081,14 @@ class Handler(BaseHTTPRequestHandler):
                 ct = {"overlay.png": "image/png", "result.geojson": "application/geo+json", "result.json": "application/json"}[name]
                 hdr = {"Content-Disposition": 'attachment; filename="lion-satellite-studio-%s-%s"' % (key[:8], name)} if one("dl") else None
                 return self.send_body(200, body, ct, headers=hdr, cache="private, max-age=600")
+            if p == "/api/geocode":
+                if not GEOCODER_ON:
+                    return self.send_err(503, "address search is switched off on this server")
+                q = " ".join((one("q", "") or "").split())
+                if not (2 <= len(q) <= 200) or any(ord(ch) < 32 for ch in q):
+                    return self.send_err(400, "q must be 2..200 characters")
+                gz, meta = geocode_query(q)
+                return self.cached_out(gz, meta)
             if p.startswith("/api/point/"):
                 return self.point_api(p, one)
             if p == "/api/status":
@@ -2154,6 +2218,12 @@ class Handler(BaseHTTPRequestHandler):
         if m:
             cache["gibs:caps"] = {"age_s": int(time.time() - m), "ttl_s": GIBS_CATALOG.ttl}
         out["cache"] = cache
+        out["geocoder"] = GEOCODER_ON
+        try:  # newest page file: an open tab compares it and offers a reload when the page changed
+            out["client_version"] = int(max(os.path.getmtime(os.path.join(dp, f)) for dp in (STATIC, os.path.join(STATIC, "js"), os.path.join(STATIC, "css"))
+                                            for f in os.listdir(dp) if f.endswith((".html", ".js", ".css"))))
+        except OSError:
+            pass
         out["keys"] = {"aisstream": "present" if KEYS.get("AISSTREAM_API_KEY") else "missing",
                        "gfw": "present" if KEYS.get("GFW_API_TOKEN") else "missing"}
         try:

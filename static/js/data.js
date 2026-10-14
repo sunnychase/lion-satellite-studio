@@ -144,6 +144,7 @@ async function loadNisar(force = false) {
     clearTimeout(N.retry); N.retry = setTimeout(() => loadNisar(), 300e3);
   }
 }
+export const nisarCap = () => App.lowMem ? 2000 : 6000;
 function drawNisar() {
   const scene = App.scene;
   if (N.prim) { scene.primitives.remove(N.prim); N.prim = null; }
@@ -153,7 +154,7 @@ function drawNisar() {
   const now = Date.now() / 60000;
   const win = N.days === 'all' ? (now - Date.parse('2026-06-17') / 60000) : (+N.days * 1440);
   const fills = [], outs = [];
-  const cap = App.isPhone() ? 6000 : 20000;
+  const cap = nisarCap();
   for (const r of N.rows.slice(0, cap)) {
     const [gn, ti, stMin, path, frame, dir, seen, flat] = r;
     const pt = types[ti];
@@ -163,9 +164,9 @@ function drawNisar() {
     let pos;
     try { pos = C.Cartesian3.fromDegreesArray(flat); } catch (e) { continue; }
     if (pos.length < 3) continue;
-    fills.push(new C.GeometryInstance({ id: { kind: 'nisar', id: gn }, geometry: new C.PolygonGeometry({ polygonHierarchy: new C.PolygonHierarchy(pos), height: 1500, arcType: C.ArcType.GEODESIC, granularity: C.Math.RADIANS_PER_DEGREE * 2 }),
+    fills.push(new C.GeometryInstance({ id: { kind: 'nisar', id: gn }, geometry: new C.PolygonGeometry({ polygonHierarchy: new C.PolygonHierarchy(pos), height: 1500, arcType: C.ArcType.GEODESIC, granularity: C.Math.RADIANS_PER_DEGREE * 4 }),
       attributes: { color: C.ColorGeometryInstanceAttribute.fromColor(col.withAlpha(a * 0.55)) } }));
-    outs.push(new C.GeometryInstance({ id: { kind: 'nisar', id: gn }, geometry: new C.PolygonOutlineGeometry({ polygonHierarchy: new C.PolygonHierarchy(pos), height: 1500, granularity: C.Math.RADIANS_PER_DEGREE * 2 }),
+    if (outs.length < (App.lowMem ? 500 : 2000)) outs.push(new C.GeometryInstance({ id: { kind: 'nisar', id: gn }, geometry: new C.PolygonOutlineGeometry({ polygonHierarchy: new C.PolygonHierarchy(pos), height: 1500, granularity: C.Math.RADIANS_PER_DEGREE * 4 }),
       attributes: { color: C.ColorGeometryInstanceAttribute.fromColor(col.withAlpha(Math.min(1, a + 0.25))) } }));
   }
   const app = new C.PerInstanceColorAppearance({ translucent: true, closed: false, flat: true });
@@ -206,7 +207,7 @@ function renderNisarInfo(box) {
   }
   const kids = [
     el('div', { class: 'stat-row' },
-      el('div', { class: 'stat' }, el('span', { class: 'big mono' }, fmtNum(N.rows.length)), el('span', { class: 'muted small' }, `footprints shown${b.capped ? ' (capped)' : ''}`)),
+      el('div', { class: 'stat' }, el('span', { class: 'big mono' }, fmtNum(Math.min(N.rows.length, nisarCap()))), el('span', { class: 'muted small' }, `footprints shown${N.rows.length > nisarCap() ? ` (newest, of ${fmtNum(N.rows.length)})` : ''}${b.capped ? ' (capped)' : ''}`)),
       el('div', { class: 'stat' }, el('span', { class: 'big mono', style: { color: FAMILY.radar } }, last ? `+${fmtNum(newCount)}` : '—'), el('span', { class: 'muted small' }, last ? `new since your last visit (${fmtAgo(Date.now() - last)} ago)` : 'first visit — new passes are counted from now'))),
     el('div', { class: 'small muted' }, b.last_poll ? `ASF polled hourly · last ${fmtAgo(Date.now() - Date.parse(b.last_poll))} ago · catalogue covers acquisitions back to ${b.coverage_from ? b.coverage_from.slice(0, 10) : '…'} (building back to 2026-06-17 slowly, to be polite)` : 'Building the NISAR catalogue from the ASF search API — first poll in progress, this refreshes in a minute.'),
   ];
@@ -265,6 +266,8 @@ export function selectNisar(gn) {
     App.flyTo({ type: 'sphere', center: bs.center, radius: bs.radius * 1.6, reason: 'NISAR footprint', force: true });
   }
 }
+// re-draw the heavy layers after a memory-mode change
+export function redrawHeavy() { drawNisar(); if (SH.on) loadShips(); }
 export function setNisarOn(on) {
   N.on = on;
   if (on) { loadNisar(); clearInterval(N.timer); N.timer = setInterval(loadNisar, 10 * 60e3); App.events.dispatchEvent(new CustomEvent('flyhint', { detail: { type: 'global', onlyIfGlobal: true, reason: 'NISAR' } })); }
@@ -408,26 +411,26 @@ export function buildSwotUI(box) {
 const SH = App.data.ships = { on: false, gfwOn: false, bb: null, timer: null, enabled: null, gfwEnabled: null, img: {} };
 const SHIP_COL = { cargo: '#3ddc84', tanker: '#f59e0b', passenger: '#60a5fa', fishing: '#f472b6', other: '#a3e635' };
 function arrowImage() {
-  if (SH.arrow) return SH.arrow;
+  if (SH.arrowUrl) return SH.arrowUrl;
   const c = document.createElement('canvas'); c.width = c.height = 24;
   const g = c.getContext('2d');
   g.fillStyle = '#fff'; g.strokeStyle = 'rgba(0,0,0,0.7)'; g.lineWidth = 1.5;
   g.beginPath(); g.moveTo(12, 2); g.lineTo(19, 21); g.lineTo(12, 16); g.lineTo(5, 21); g.closePath(); g.fill(); g.stroke();
-  return (SH.arrow = c);
+  return (SH.arrowUrl = c.toDataURL());
 }
 function dotImage() {
-  if (SH.dot) return SH.dot;
+  if (SH.dotUrl) return SH.dotUrl;
   const c = document.createElement('canvas'); c.width = c.height = 16;
   const g = c.getContext('2d'); g.fillStyle = '#fff'; g.strokeStyle = 'rgba(0,0,0,0.7)'; g.lineWidth = 1.5;
   g.beginPath(); g.arc(8, 8, 5, 0, Math.PI * 2); g.fill(); g.stroke();
-  return (SH.dot = c);
+  return (SH.dotUrl = c.toDataURL());
 }
 function ringImage() {
-  if (SH.ring) return SH.ring;
+  if (SH.ringUrl) return SH.ringUrl;
   const c = document.createElement('canvas'); c.width = c.height = 22;
   const g = c.getContext('2d'); g.strokeStyle = '#fff'; g.lineWidth = 2.2;
   g.beginPath(); g.arc(11, 11, 7.5, 0, Math.PI * 2); g.stroke();
-  return (SH.ring = c);
+  return (SH.ringUrl = c.toDataURL());
 }
 async function loadShips() {
   if (!SH.on) return;
@@ -447,7 +450,7 @@ function drawShips(body) {
   const scene = App.scene;
   if (!SH.bbc) SH.bbc = scene.primitives.add(new C.BillboardCollection({ scene }));
   SH.bbc.removeAll();
-  const cap = App.isPhone() ? 5000 : 20000;
+  const cap = App.lowMem ? 2000 : App.isPhone() ? 5000 : 12000;
   const sbd = new C.NearFarScalar(2e5, 1.0, 8e6, 0.35);
   for (const s of body.ships.slice(0, cap)) {
     const [mmsi, lat, lon, cog, hdg, sog, cls, age] = s;
@@ -525,5 +528,5 @@ export function buildShipUI(box, status) {
   if (!SH.gfwEnabled) ginfo.replaceChildren(el('div', { class: 'empty' }, 'Dark-vessel detections stay off until GFW_API_TOKEN is added to the server’s keys file (keys.env) and the server is restarted.'));
   box.replaceChildren(t1, info, t2, ginfo);
   // the view changed: refresh ships soon (debounced by the 12 s timer otherwise)
-  App.viewer.camera.moveEnd.addEventListener(() => { if (SH.on) loadShips(); });
+  App.viewer.camera.moveEnd.addEventListener(() => { clearTimeout(SH.moveT); if (SH.on) SH.moveT = setTimeout(() => { if (!App.pointerDown) loadShips(); }, 900); });
 }

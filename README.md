@@ -105,7 +105,7 @@ Imagery tiles (GIBS, EOX, Planetary Computer's Sentinel-1 tiles through the serv
 | <img src="docs/images/radar-water-oroville.webp" width="100%" alt="Sentinel-1 water analysis of Lake Oroville"> | **Your own radar analysis.** Draw a box (up to 2,500 km²) and the optional worker reads only that window of Sentinel-1 RTC from Planetary Computer: **open water** (Lee filter + Otsu threshold), **change** between two passes, **bright targets at sea** (CFAR ship detection) or a **12-month backscatter time series**. Results come with the method, the threshold and a GeoJSON download. |
 | <img src="docs/images/radar-ships-rotterdam.webp" width="100%" alt="Ship detections off Rotterdam"> | **Ships at sea from radar.** CFAR detection over sea pixels only (Natural Earth land plus ESA WorldCover 10 m as the land mask), with length and confidence per target. With an aisstream.io key, near-live scenes are cross-checked against AIS. |
 | <img src="docs/images/swipe-oroville.webp" width="100%" alt="Before/after swipe of two Sentinel-1 passes"> | **Before / after swipe.** Compare two radar passes of the same orbit, or radar against true colour, with a divider you drag. The *Radar sees through clouds* tour does this for you. |
-| <img src="docs/images/nisar-granule.webp" width="100%" alt="A NISAR granule card with the browse image draped on the globe"> | **Built to explore.** One-tap guided tours (ISS, GOES, fires, SWOT, night, radar, NISAR), search by satellite, NORAD id, place or river, time controls (pause, real time, ×10, ×100), a share link that restores the view, PNG capture with credits burned in, and a status line for every source. |
+| <img src="docs/images/nisar-granule.webp" width="100%" alt="A NISAR granule card with the browse image draped on the globe"> | **Built to explore.** One-tap guided tours (ISS, GOES, fires, SWOT, night, radar, NISAR), search by satellite, NORAD id, place, river or street address (OpenStreetMap, on Enter), time controls (pause, real time, ×10, ×100), a share link that restores the view, PNG capture with credits burned in, and a status line for every source. |
 
 **On a phone** the panel becomes a bottom sheet and every card fits one hand:
 
@@ -113,8 +113,8 @@ Imagery tiles (GIBS, EOX, Planetary Computer's Sentinel-1 tiles through the serv
 
 ## Point report — what sees this spot?
 
-Type coordinates (`37.8199, -122.4783` or `37°49′11.6″N 122°28′41.9″W`) or a city, right-click the globe (long-press on a
-phone), or tap *My location*, and the app answers **which satellites see that exact point and which data already exist for it**:
+Type an address or a place (*1 Main St, Springfield* or *Golden Gate Bridge*), coordinates (`37.8199, -122.4783` or
+`37°49′11.6″N 122°28′41.9″W`), right-click the globe (long-press on a phone), or tap *My location*, and the app answers **which satellites see that exact point and which data already exist for it**:
 
 <p><img src="docs/images/point-report.webp" width="74%" alt="Point report for the Golden Gate Bridge, with a Sentinel-2 scene shown"> <img src="docs/images/phone-point.webp" width="24%" alt="Phone: Point report"></p>
 
@@ -195,6 +195,8 @@ Settings are environment variables, read from `satellite.env` next to `server.py
 | `LSS_VENV_PYTHON` | `./venv/bin/python` | Python with the radar extras. Without it, the *Analyse* buttons say the extras are missing; everything else works. |
 | `LSS_CONTACT` | empty | Optional contact added to the User-Agent sent to providers, e.g. `LionSatelliteStudio/1.0 (+https://github.com/sunnychase/lion-satellite-studio; https://example.org/contact)`. |
 | `LSS_DISABLE_AIS` | `0` | `1` keeps the aisstream.io connection closed even if a key is present. |
+| `LSS_GEOCODER` | `1` | `0` switches address search off. |
+| `LSS_GEOCODER_URL` | Nominatim | Another Nominatim-compatible `/search` endpoint (https only), e.g. your own instance. |
 
 **Using it from your phone or another computer.** There is no login. On a network you trust, set `LSS_HOST=0.0.0.0` and
 open `http://<server-address>:8640`. Anywhere else, keep the default and put it behind an authenticating reverse proxy or
@@ -265,6 +267,7 @@ carry the attributions. The code's MIT licence does not cover the data.
 | [ESA WorldCover 2021 v200](https://esa-worldcover.org) | land mask for ship detection | "© ESA WorldCover project 2021 / Contains modified Copernicus Sentinel data (2021) processed by ESA WorldCover consortium", **CC BY 4.0**. |
 | [EOxCloudless 2025](https://cloudless.eox.at) (EOX IT Services) | hi-res backdrop when zoomed in | "EOxCloudless https://cloudless.eox.at by EOX IT Services GmbH (Contains modified Copernicus Sentinel data 2025)", **CC BY-NC-SA 4.0: non-commercial use only.** For commercial use, switch off *Hi-res backdrop* under *Imagery & terrain* (or remove it from `static/js/imagery.js`). |
 | [Mapzen / AWS Terrain Tiles](https://registry.opendata.aws/terrain-tiles/) | 3D terrain | Open data from many sources (SRTM, GMTED2010, 3DEP, ETOPO1, EU-DEM, ArcticDEM and national agencies); the full attribution list is in the page's About box. |
+| [OpenStreetMap Nominatim](https://nominatim.org) | address search | Data © OpenStreetMap contributors, [ODbL](https://www.openstreetmap.org/copyright). Used within the [Nominatim usage policy](https://operations.osmfoundation.org/policies/nominatim/): a search is sent only when you press Enter (no autocomplete), at most one request per second for the whole server, with an identifying User-Agent, and every answer is cached for 30 days. Queries go to the OpenStreetMap Foundation; don't search for private addresses you would not share. Switch it off or point it elsewhere with `LSS_GEOCODER` / `LSS_GEOCODER_URL`. |
 | [Natural Earth](https://www.naturalearthdata.com) | borders, gazetteer, land mask | Public domain. Made with Natural Earth. |
 | [aisstream.io](https://aisstream.io) (your key) | live AIS ships | Free API key. aisstream.io's documentation: "Direct browser connections are not permitted; proxy only the information your clients need from your own server." This server holds the single WebSocket and the key, and the page only sees the server's answers. No terms-of-use page was found; treat the data as for personal, non-commercial viewing. |
 | [Global Fishing Watch](https://globalfishingwatch.org) (your token) | radar detections of vessels without AIS | "Powered by Global Fishing Watch." API data under CC BY-NC 4.0: **non-commercial use only**; the token is issued for non-commercial use. |
@@ -303,6 +306,15 @@ Honest notes from building and testing it:
 No. Everything except two optional layers is keyless. Ships (aisstream.io) and dark vessels (Global Fishing Watch) need free
 keys you add to the server's keys file. Downloading NISAR products themselves (not their footprints) needs a free NASA
 Earthdata login, which this app does not handle.
+</details>
+
+<details>
+<summary><b>The page is slow, or the panel goes blank, on my machine</b></summary>
+
+Reload once (the page also offers *Reload* when a newer version is on the server). On a busy or small GPU, or a machine whose
+memory is shared with other big jobs, switch on **Low-memory mode** under *Imagery & terrain*: it shows fewer NISAR footprints
+and ships, drops 3D models, terrain and the hi-res backdrop, and uses a lighter tile cache. It also switches on by itself after a
+graphics reset or when frames stay slow.
 </details>
 
 <details>

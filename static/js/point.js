@@ -529,12 +529,31 @@ async function shareLink() {
   try { await navigator.clipboard.writeText(url); toast('Share link copied'); } catch (e) { toast(url, 8000); }
 }
 
+// ---------------------------------------------------------------- address search (OpenStreetMap Nominatim via the server)
+// Sent only when the user presses Enter or taps "Look up" (Nominatim forbids autocomplete); coordinates, DMS and the
+// built-in gazetteer are tried first, locally. The server caches answers for 30 days and sends at most 1 request/s.
+export async function addressSearch(q) {
+  App.openSection('point', true);
+  const inp = $('#pt-input'), box = $('#pt-geo');
+  if (inp) inp.value = q;
+  if (!box) return;
+  box.replaceChildren(el('div', { class: 'small muted' }, `Searching OpenStreetMap for “${q}” …`));
+  try {
+    const { body } = await getJSON(`/api/geocode?q=${encodeURIComponent(q)}`);
+    if (!body.results.length) { box.replaceChildren(el('div', { class: 'small muted' }, `No address or place found for “${q}”.`), el('div', { class: 'small muted' }, body.attribution)); return; }
+    box.replaceChildren(...body.results.map(r => el('button', { class: 'pt-row', onclick: () => { box.replaceChildren(); lookup(r.lat, r.lon, { name: (r.name || r.label.split(',')[0]).slice(0, 60) }); }, title: r.label },
+      el('span', { class: 'dot', style: { background: GOLD } }), el('span', {}, r.label), el('span', { class: 'mono muted' }, `${r.lat.toFixed(4)}, ${r.lon.toFixed(4)}`))),
+      el('div', { class: 'small muted' }, body.attribution));
+  } catch (e) { box.replaceChildren(el('div', { class: 'small muted' }, `Address search unavailable (${e.message}).`)); }
+}
+
 // ---------------------------------------------------------------- inputs: panel box, right-click / long-press, my location
 export function buildPointUI(box) {
-  const inp = el('input', { class: 'input', placeholder: '37.8199, -122.4783 · 40°26′46″N 79°58′56″W · a city', list: 'place-list', 'aria-label': 'coordinates or place' });
+  const inp = el('input', { class: 'input', id: 'pt-input', placeholder: 'an address, a place, 37.8199, -122.4783 or 40°26′46″N 79°58′56″W', list: 'place-list', 'aria-label': 'address, place or coordinates' });
   const go = () => {
     const r = resolveInput(inp.value);
-    if (!r) { toast('Type “lat, lon” (decimal or degrees-minutes-seconds) or a place from the built-in gazetteer'); return; }
+    const q = inp.value.trim();
+    if (!r) { if (q.length >= 2) addressSearch(q); else toast('Type an address, a place or “lat, lon”'); return; }
     lookup(r.lat, r.lon, { name: r.name });
   };
   inp.addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
@@ -543,7 +562,7 @@ export function buildPointUI(box) {
     navigator.geolocation.getCurrentPosition(p => lookup(p.coords.latitude, p.coords.longitude, { name: 'your location' }),
       () => toast('Location not shared (browsers allow it only on https:// or localhost)'), { timeout: 10000, maximumAge: 600000 });
   } }, 'My location');
-  box.replaceChildren(el('div', { class: 'row' }, inp, el('button', { class: 'btn gold small', onclick: go }, 'Look up')), el('div', { class: 'row' }, me),
+  box.replaceChildren(el('div', { class: 'row' }, inp, el('button', { class: 'btn gold small', onclick: go }, 'Look up')), el('div', { class: 'row' }, me), el('div', { id: 'pt-geo', class: 'pt-list' }),
     el('div', { class: 'hint' }, App.isPhone() ? 'Or long-press the globe. ' : 'Or right-click the globe. ', 'The Point report lists the satellites over the point now, the next passes that image it, and the imagery and products that already exist for that exact spot.'));
 }
 export function setupPointPicking() {

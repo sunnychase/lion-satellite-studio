@@ -507,7 +507,7 @@ function ringImg(col) {
   const c = document.createElement('canvas'); c.width = c.height = 22;
   const g = c.getContext('2d'); g.strokeStyle = col; g.lineWidth = 2.4;
   g.beginPath(); g.moveTo(11, 2); g.lineTo(20, 11); g.lineTo(11, 20); g.lineTo(2, 11); g.closePath(); g.stroke();
-  return c;
+  return c.toDataURL();
 }
 function drawShips(pts) {
   R.shipPts = App.scene.primitives.add(new C.BillboardCollection({ scene: App.scene }));
