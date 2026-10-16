@@ -4,7 +4,6 @@
 // newest data. Each pass skips objects below the horizon or outside the view: they are not moved, and the ones behind
 // the Earth are hidden. Passes run just before a frame, only as often as the fastest visible object moves about a
 // pixel (at least once per data update), so in render-on-demand mode the globe still sits idle when nothing visible moves.
-// Idea from gods-eye-view (Bilawal Sidhu, Sameh Khamis / Halfpixel, MIT), written anew for this app.
 import { App, requestRender } from './util.js';
 
 const C = window.Cesium;

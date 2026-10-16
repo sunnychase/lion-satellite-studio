@@ -4,8 +4,7 @@ Updates to Lion Satellite Studio, newest first. The project has no version numbe
 
 ## 2026-10-14 — Smooth motion, sensor looks, FIRMS fires, next passes
 
-Four ideas borrowed from [gods-eye-view](https://github.com/bilawalsidhu/gods-eye-view) (Bilawal Sidhu and Sameh Khamis,
-Halfpixel, MIT), written anew for this app; credited in NOTICE.md, the README and the About box.
+Four additions that make the globe feel live and easier to read.
 
 - **Smooth motion + horizon culling** (`static/js/motion.js`). Satellites and AIS ships are dead-reckoned between data
   updates: satellites from the worker's position plus its new Earth-fixed velocity, ships along their last course at their

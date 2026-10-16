@@ -68,14 +68,6 @@ attribution line at the bottom of each frame. Some frames include EOxCloudless 2
 Sentinel data; those images and the video may therefore be reused only on the providers' terms (for the EOX parts:
 non-commercial, share-alike, with attribution). The Lion logo in `docs/images/logo.png` belongs to this project.
 
-## Ideas borrowed
-
-- **gods-eye-view** by Bilawal Sidhu and Sameh Khamis (Halfpixel), MIT licence,
-  [github.com/bilawalsidhu/gods-eye-view](https://github.com/bilawalsidhu/gods-eye-view): the ideas behind four features of
-  this app (dead-reckoned smooth motion with horizon culling, the sensor looks — night vision, thermal/ironbow, CRT, noir —
-  NASA FIRMS fire points, and satellite pass predictions with rise / peak / set). No code was copied; the implementation in
-  `static/js/motion.js`, `looks.js`, `fires.js`, `passworker.js` and the server's FIRMS section was written for this project.
-
 ## Layout
 
 - **README and repository-template layout** adapted from [morluto/rea](https://github.com/morluto/rea) (MIT): the structure

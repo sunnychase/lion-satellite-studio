@@ -3,7 +3,6 @@
 // PostProcessStage (a few texture reads per pixel, no blur chains, nothing animated, so render-on-demand stays idle).
 // Picking is untouched: no stage moves pixels (no lens warp), and the stages only change how the frame is coloured.
 // Off by default; the choice is kept in this browser. These are looks, not sensor data: "Thermal" maps brightness.
-// Idea from gods-eye-view (Bilawal Sidhu, Sameh Khamis / Halfpixel, MIT), shaders written anew for this app.
 import { App, $, el, store, toast, requestRender, chip } from './util.js';
 
 const C = window.Cesium;

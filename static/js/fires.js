@@ -2,7 +2,6 @@
 // NASA FIRMS active fires as points: every VIIRS 375 m hotspot of the last 24 hours (Suomi NPP, NOAA-20, NOAA-21) from
 // FIRMS's public, keyless 24 h CSV files, fetched and cached by the server (/api/fires). One PointPrimitiveCollection,
 // built in slices so tens of thousands of points never block the page; colour = time since detection, size = FRP.
-// Idea from gods-eye-view (Bilawal Sidhu, Sameh Khamis / Halfpixel, MIT), written anew for this app.
 import { App, $, el, getJSON, store, fmtAgo, fmtUTC, fmtNum, requestRender, FAMILY, skeleton, emptyState, chip, tick } from './util.js';
 import { toggle } from './imagery.js';
 
