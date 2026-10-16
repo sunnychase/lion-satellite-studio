@@ -445,9 +445,6 @@ If the project is useful to you, you can support it with a [donation](https://do
 
 Created by **[Sunny Chase](https://github.com/sunnychase)** in collaboration with **Claude** (Anthropic). Data from NASA, NOAA,
 USGS, ESA/Copernicus, CNES, ISRO and the other providers listed above; software and models as listed in [NOTICE.md](NOTICE.md).
-The ideas for smooth motion with horizon culling, the sensor looks, FIRMS fire points and pass predictions come from
-[gods-eye-view](https://github.com/bilawalsidhu/gods-eye-view) by Bilawal Sidhu and Sameh Khamis (Halfpixel), MIT licence;
-the code here was written for this project.
 
 ## License
 
