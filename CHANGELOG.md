@@ -2,6 +2,11 @@
 
 Updates to Lion Satellite Studio, newest first. The project has no version numbers; each entry is dated.
 
+## 2026-10-17
+
+- **Ship card: navigational status.** Shows the AIS navigational status the ship transmits (under way, at anchor, moored, fishing, restricted manoeuvrability and so on); "under way" at under 0.5 kn is marked *not making way*, and "at anchor" or "moored" while moving at 1 kn or more is flagged. Class B transponders send no status. The card's note now says that status and position are what the ship transmits and that a ship with AIS off is not in the live layer.
+- **README:** the ships wording says what the data is: live AIS from coastal receivers, plus satellite radar (Sentinel-1, Global Fishing Watch) that can spot ships with AIS off, hours after each pass.
+
 ## 2026-10-14 — Smooth motion, sensor looks, FIRMS fires, next passes
 
 Four additions that make the globe feel live and easier to read.

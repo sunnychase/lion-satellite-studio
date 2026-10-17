@@ -543,6 +543,19 @@ function renderShipInfo(msg, body) {
   box.replaceChildren(el('div', { class: 'stat-row' }, el('div', { class: 'stat' }, el('span', { class: 'big mono', style: { color: FAMILY.ship } }, fmtNum(body.returned)), el('span', { class: 'muted small' }, `ships in view${body.total > body.returned ? ` of ${fmtNum(body.total)}` : ''} · heard in last 30 min`))),
     el('div', { class: 'legend-row small' }, Object.entries(SHIP_COL).map(([k, c]) => el('span', {}, el('span', { class: 'dot', style: { background: c } }), k))));
 }
+// AIS navigational status (ITU-R M.1371 message 1-3, field 'Navigational status'); 15 = not defined. Class B reports carry none.
+const NAV_STATUS = ['Under way using engine', 'At anchor', 'Not under command', 'Restricted manoeuvrability', 'Constrained by her draught',
+  'Moored', 'Aground', 'Engaged in fishing', 'Under way sailing', 'Reserved (9)', 'Reserved (10)', 'Power-driven vessel towing astern',
+  'Power-driven vessel pushing ahead or towing alongside', 'Reserved (13)', 'AIS-SART / MOB / EPIRB active', 'Not defined'];
+function navStatus(s) {
+  const n = s.nav_status;
+  if (n === null || n === undefined || n < 0 || n > 15) return s.class === 'B' ? '— (class B sends none)' : '—';
+  let t = NAV_STATUS[n];
+  // "under way" is declared by the crew; the speed tells whether the ship is actually making way
+  if ((n === 0 || n === 8) && s.sog_kn !== null && s.sog_kn !== undefined && s.sog_kn < 0.5) t += ', not making way (< 0.5 kn)';
+  else if ((n === 1 || n === 5) && s.sog_kn !== null && s.sog_kn !== undefined && s.sog_kn >= 1) t += ` — but moving ${s.sog_kn.toFixed(1)} kn`;
+  return t;
+}
 export async function shipCard(card, mmsi) {
   skeleton(card, 4);
   try {
@@ -550,11 +563,12 @@ export async function shipCard(card, mmsi) {
     card.replaceChildren(el('div', { class: 'card-sub' }, el('span', { class: 'tag', style: { '--c': SHIP_COL[s.type_class] || FAMILY.ship } }, s.type_class), ` AIS class ${s.class}`),
       el('div', { class: 'kv' }, [
         ['Name', s.name || '—'], ['MMSI', s.mmsi], ['Call sign', s.callsign || '—'], ['IMO', s.imo || '—'], ['Type code', s.type ?? '—'],
+        ['Status', navStatus(s)],
         ['Speed', s.sog_kn !== null && s.sog_kn !== undefined ? `${s.sog_kn.toFixed(1)} kn` : '—'], ['Course', s.cog !== null && s.cog !== undefined ? `${s.cog.toFixed(0)}°` : '—'], ['Heading', s.heading ?? '—'],
         ['Destination', s.dest || '—'], ['ETA', s.eta || '—'], ['Length', s.length ? `${s.length} m` : '—'], ['Last report', `${fmtAgo(s.age_s * 1000)} ago`],
         ['Position', `${s.lat.toFixed(4)}°, ${s.lon.toFixed(4)}°`],
       ].map(([k, v]) => [el('span', { class: 'k' }, k), el('span', { class: 'v mono' }, v)])),
-      el('div', { class: 'note' }, 'Live AIS via aisstream.io terrestrial receivers: good near coasts, weak mid-ocean.'));
+      el('div', { class: 'note' }, 'Live AIS via aisstream.io terrestrial receivers: good near coasts, weak mid-ocean. Status and position are what the ship transmits; a ship with AIS off is not here.'));
   } catch (e) { emptyState(card, `Ship not heard recently (${e.message})`); }
 }
 export function selectShip(mmsi) {

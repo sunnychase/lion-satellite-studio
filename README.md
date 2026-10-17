@@ -38,7 +38,8 @@ Lion Satellite Studio puts the open Earth-observation record on one globe you ca
 your browser from CelesTrak's orbital elements; imagery comes straight from NASA GIBS; a small Python server fetches,
 caches and checks everything else (NISAR footprints, SWOT water heights, earthquakes, Sentinel-1 radar) so the providers see a
 handful of polite requests, not one per viewer. Nothing needs an account. Two optional live layers (ships and dark vessels)
-use free keys you add yourself.
+use free keys you add yourself: live AIS ship positions from coastal receivers, plus satellite radar (Sentinel-1 and Global
+Fishing Watch) that can spot ships with AIS switched off, hours after each pass.
 
 ## Quick start
 
