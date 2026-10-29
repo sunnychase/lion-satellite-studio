@@ -20,6 +20,10 @@ night lights, NISAR radar footprints, SWOT river heights, and your own Sentinel-
 </p>
 
 <p align="center">
+  <a href="https://x.com/LionFMN"><img src="https://img.shields.io/badge/Follow%20me%20on%20X-000000?style=for-the-badge&logo=x&logoColor=white" alt="Follow @LionFMN on X"></a>
+</p>
+
+<p align="center">
   <a href="#quick-start">Quick start</a> ·
   <a href="#how-it-works">How it works</a> ·
   <a href="#features">Features</a> ·
